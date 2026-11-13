@@ -1,4 +1,6 @@
 import {
+  getPinFallbackTextSizeForZoom,
+  getPinIconSizeForZoom,
   prefersReducedMotion,
   toBasketFeatureCollection,
   toUserPinFeatureCollection,
@@ -124,5 +126,14 @@ describe('basket map data source', () => {
     expect(prefersReducedMotion()).toBe(true)
 
     window.matchMedia = originalMatchMedia
+  })
+
+  it('changes marker sizes dramatically across zoom levels', () => {
+    expect(getPinIconSizeForZoom(8)).toBe(0.2)
+    expect(getPinIconSizeForZoom(14)).toBe(0.9)
+    expect(getPinIconSizeForZoom(17)).toBe(1.4)
+    expect(getPinFallbackTextSizeForZoom(8)).toBe(8)
+    expect(getPinFallbackTextSizeForZoom(14)).toBe(28)
+    expect(getPinFallbackTextSizeForZoom(17)).toBe(42)
   })
 })

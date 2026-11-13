@@ -7,8 +7,19 @@ describe('App scaffold', () => {
     render(<App />)
 
     expect(
-      screen.getByRole('heading', { name: 'NYC Litter Baskets' }),
+      screen.getByRole('heading', { name: '🗑️ NYC Litter Binventory 🗑️' }),
     ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'NYC Litter Binventory helps identify and report missing litter baskets around NYC. Collaborative features coming soon :)',
+      ),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: 'NYC Open Data DSNY Litter Basket Inventory' }),
+    ).toHaveAttribute(
+      'href',
+      'https://data.cityofnewyork.us/dataset/DSNY-Litter-Basket-Inventory/8znf-7b2c',
+    )
   })
 
   it('renders the development JSON verification control', () => {

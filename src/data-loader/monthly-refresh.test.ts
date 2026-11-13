@@ -55,6 +55,7 @@ function inventoryLoadResult() {
       strategy: 'high-limit' as const,
       requestCount: 1,
       pageCount: 1,
+      responseSizeBytes: 128,
       rawRecordCount: 1,
       uniqueRecordCount: 1,
       duplicateCount: 0,

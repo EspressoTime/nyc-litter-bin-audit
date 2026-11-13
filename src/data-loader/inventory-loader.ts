@@ -8,12 +8,16 @@ import type { SocrataBasketRecord } from '../baskets/model'
 export type InventoryLoadStrategy = 'high-limit' | 'offset-pagination'
 
 export type InventoryLoadTerminationReason =
-  'short-high-limit-page' | 'short-offset-page' | 'empty-offset-page'
+  | 'short-high-limit-page'
+  | 'short-offset-page'
+  | 'empty-offset-page'
+  | 'repeated-offset-page'
 
 export type InventoryLoadDiagnostics = {
   strategy: InventoryLoadStrategy
   requestCount: number
   pageCount: number
+  responseSizeBytes: number
   rawRecordCount: number
   uniqueRecordCount: number
   duplicateCount: number
@@ -48,7 +52,7 @@ export class InventoryLoadError extends Error {
 async function fetchInventoryPage(
   fetcher: InventoryFetcher,
   query: SocrataQueryOptions,
-): Promise<SocrataBasketRecord[]> {
+): Promise<{ records: SocrataBasketRecord[]; responseSizeBytes: number }> {
   const response = await fetcher(buildInventoryQueryUrl(query))
 
   if (!response.ok) {
@@ -57,12 +61,21 @@ async function fetchInventoryPage(
     )
   }
 
-  const payload: unknown = await response.json()
+  const body = await response.arrayBuffer()
+  const responseSizeBytes = body.byteLength
+  let payload: unknown
+
+  try {
+    payload = JSON.parse(new TextDecoder().decode(body))
+  } catch {
+    throw new InventoryLoadError('Socrata inventory response was not valid JSON.')
+  }
+
   if (!Array.isArray(payload)) {
     throw new InventoryLoadError('Socrata inventory response was not a JSON array.')
   }
 
-  return payload as SocrataBasketRecord[]
+  return { records: payload as SocrataBasketRecord[], responseSizeBytes }
 }
 
 function getBasketId(record: SocrataBasketRecord): string | null {
@@ -109,6 +122,7 @@ function createLoadResult(
   pages: SocrataBasketRecord[][],
   strategy: InventoryLoadStrategy,
   requestCount: number,
+  responseSizeBytes: number,
   terminationReason: InventoryLoadTerminationReason,
 ): InventoryLoadResult {
   const deduped = dedupeRecords(pages)
@@ -119,6 +133,7 @@ function createLoadResult(
       strategy,
       requestCount,
       pageCount: pages.length,
+      responseSizeBytes,
       rawRecordCount: deduped.rawRecordCount,
       uniqueRecordCount: deduped.uniqueRecordCount,
       duplicateCount: deduped.duplicateCount,
@@ -135,20 +150,52 @@ async function loadWithOffsetPagination(
   const pages: SocrataBasketRecord[][] = []
   let offset = 0
   let requestCount = initialRequestCount
+  let responseSizeBytes = 0
+  const seenBasketIds = new Set<string>()
+  let previousPageSignature: string | null = null
 
   while (true) {
-    const page = await fetchInventoryPage(fetcher, {
+    const pageResult = await fetchInventoryPage(fetcher, {
       limit: pageSize,
       offset,
     })
+    const page = pageResult.records
     pages.push(page)
     requestCount += 1
+    responseSizeBytes += pageResult.responseSizeBytes
+
+    const pageSignature = JSON.stringify(page)
+    const hasNoNewBasketIds =
+      page.length > 0 &&
+      page.every((record) => {
+        const basketId = getBasketId(record)
+        return basketId !== null && seenBasketIds.has(basketId)
+      })
+
+    for (const record of page) {
+      const basketId = getBasketId(record)
+      if (basketId !== null) {
+        seenBasketIds.add(basketId)
+      }
+    }
+
+    if (pageSignature === previousPageSignature || hasNoNewBasketIds) {
+      return createLoadResult(
+        pages,
+        'offset-pagination',
+        requestCount,
+        responseSizeBytes,
+        'repeated-offset-page',
+      )
+    }
+    previousPageSignature = pageSignature
 
     if (page.length === 0) {
       return createLoadResult(
         pages,
         'offset-pagination',
         requestCount,
+        responseSizeBytes,
         'empty-offset-page',
       )
     }
@@ -158,6 +205,7 @@ async function loadWithOffsetPagination(
         pages,
         'offset-pagination',
         requestCount,
+        responseSizeBytes,
         'short-offset-page',
       )
     }
@@ -175,12 +223,19 @@ export async function loadCompleteInventory(
   let highLimitRequestError: unknown
 
   try {
-    const highLimitPage = await fetchInventoryPage(fetcher, {
+    const highLimitPageResult = await fetchInventoryPage(fetcher, {
       limit: preferredLimit,
     })
+    const highLimitPage = highLimitPageResult.records
 
     if (highLimitPage.length < preferredLimit) {
-      return createLoadResult([highLimitPage], 'high-limit', 1, 'short-high-limit-page')
+      return createLoadResult(
+        [highLimitPage],
+        'high-limit',
+        1,
+        highLimitPageResult.responseSizeBytes,
+        'short-high-limit-page',
+      )
     }
   } catch (error) {
     highLimitRequestError = error

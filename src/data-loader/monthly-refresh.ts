@@ -2,7 +2,14 @@ import {
   createInventorySnapshot,
   type NormalizedInventorySnapshot,
 } from '../baskets/model'
-import { validateAndNormalizeInventory } from '../baskets/validation'
+import {
+  InventoryValidationError,
+  validateAndNormalizeInventory,
+} from '../baskets/validation'
+import {
+  recordClientDiagnostic,
+  type ClientDiagnosticInput,
+} from '../diagnostics/client-diagnostics'
 import {
   claimInventoryMetadataCheck,
   getInventoryRefreshState,
@@ -46,6 +53,47 @@ export type MonthlyRefreshOptions = {
   now?: Date
   fetcher?: InventoryFetcher
   loadInventory?: () => Promise<InventoryLoadResult>
+}
+
+function recordRefreshDiagnostic(input: ClientDiagnosticInput): void {
+  recordClientDiagnostic(input)
+}
+
+function elapsedMilliseconds(startedAt: number): number {
+  return Math.max(0, Date.now() - startedAt)
+}
+
+function getInventoryErrorCode(error: unknown): ClientDiagnosticInput['errorCode'] {
+  if (error instanceof InventoryValidationError) {
+    return 'schema-failure'
+  }
+
+  return 'inventory-request-failure'
+}
+
+function getValidationDiagnosticCounts(
+  error: unknown,
+): Pick<
+  ClientDiagnosticInput,
+  | 'sourceRowCount'
+  | 'validRowCount'
+  | 'invalidRowCount'
+  | 'duplicateCount'
+  | 'terminationReason'
+> {
+  if (!(error instanceof InventoryValidationError)) {
+    return {}
+  }
+
+  return {
+    sourceRowCount: error.diagnostics.inputRecordCount,
+    validRowCount: error.diagnostics.validRecordCount,
+    invalidRowCount:
+      error.diagnostics.invalidCoordinateCount +
+      error.diagnostics.unnormalizableRecordCount,
+    duplicateCount: error.diagnostics.duplicateCount,
+    terminationReason: error.diagnostics.terminationReason,
+  }
 }
 
 function getDatePart(
@@ -153,9 +201,16 @@ export async function checkForMonthlyInventoryUpdate({
   fetcher = fetch,
   loadInventory = () => loadCompleteInventory(fetcher),
 }: MonthlyRefreshOptions): Promise<MonthlyRefreshResult> {
+  const startedAt = Date.now()
   const context = getNewYorkCalendarContext(now)
 
   if (context.day < SOCRATA_CONFIG.refreshStartDay) {
+    recordRefreshDiagnostic({
+      operation: 'inventory-metadata-check',
+      status: 'skipped',
+      durationMs: elapsedMilliseconds(startedAt),
+      terminationReason: 'not-eligible',
+    })
     return {
       outcome: 'not-eligible',
       dateKey: context.dateKey,
@@ -166,15 +221,41 @@ export async function checkForMonthlyInventoryUpdate({
   const claim = await claimInventoryMetadataCheck(context.dateKey, context.monthKey)
   const claimOutcome = getOutcomeForClaim(claim, context)
   if (claimOutcome) {
+    recordRefreshDiagnostic({
+      operation: 'inventory-metadata-check',
+      status: 'skipped',
+      durationMs: elapsedMilliseconds(startedAt),
+      terminationReason: claimOutcome.outcome,
+    })
     return claimOutcome
   }
 
-  const sourceVersion = await fetchInventorySourceVersion(fetcher)
+  let sourceVersion: string
+  try {
+    sourceVersion = await fetchInventorySourceVersion(fetcher)
+  } catch (error) {
+    recordRefreshDiagnostic({
+      operation: 'inventory-metadata-check',
+      status: 'error',
+      durationMs: elapsedMilliseconds(startedAt),
+      terminationReason: 'metadata-request-failure',
+      errorCode: 'metadata-request-failure',
+    })
+    throw error
+  }
+
   const refreshState = await getInventoryRefreshState()
   const appliedVersion =
     refreshState?.appliedSourceVersion ?? currentSnapshot.metadata.sourceVersion
 
   if (!isNewerSourceVersion(sourceVersion, appliedVersion)) {
+    recordRefreshDiagnostic({
+      operation: 'inventory-metadata-check',
+      status: 'unchanged',
+      durationMs: elapsedMilliseconds(startedAt),
+      sourceVersion: appliedVersion,
+      terminationReason: 'source-unchanged',
+    })
     return {
       outcome: 'unchanged',
       dateKey: context.dateKey,
@@ -183,9 +264,56 @@ export async function checkForMonthlyInventoryUpdate({
     }
   }
 
-  const loadedInventory = await loadInventory()
-  const normalized = validateAndNormalizeInventory(loadedInventory.records)
+  let loadedInventory: InventoryLoadResult
+  try {
+    loadedInventory = await loadInventory()
+  } catch (error) {
+    recordRefreshDiagnostic({
+      operation: 'inventory-refresh',
+      status: 'error',
+      durationMs: elapsedMilliseconds(startedAt),
+      terminationReason: 'inventory-load-failure',
+      errorCode: getInventoryErrorCode(error),
+    })
+    throw error
+  }
+
+  let normalized
+  try {
+    normalized = validateAndNormalizeInventory(loadedInventory.records)
+  } catch (error) {
+    recordRefreshDiagnostic({
+      operation: 'inventory-refresh',
+      status: 'error',
+      durationMs: elapsedMilliseconds(startedAt),
+      responseSizeBytes: loadedInventory.diagnostics.responseSizeBytes,
+      requestCount: loadedInventory.diagnostics.requestCount,
+      pageCount: loadedInventory.diagnostics.pageCount,
+      errorCode: 'schema-failure',
+      ...getValidationDiagnosticCounts(error),
+    })
+    throw error
+  }
+
   if (!normalized.canPublish) {
+    recordClientDiagnostic({
+      operation: 'inventory-refresh',
+      status: 'error',
+      durationMs: elapsedMilliseconds(startedAt),
+      responseSizeBytes: loadedInventory.diagnostics.responseSizeBytes,
+      requestCount: loadedInventory.diagnostics.requestCount,
+      pageCount: loadedInventory.diagnostics.pageCount,
+      sourceRowCount: loadedInventory.diagnostics.rawRecordCount,
+      validRowCount: normalized.diagnostics.validRecordCount,
+      invalidRowCount:
+        normalized.diagnostics.invalidCoordinateCount +
+        normalized.diagnostics.unnormalizableRecordCount,
+      duplicateCount:
+        loadedInventory.diagnostics.duplicateCount +
+        normalized.diagnostics.duplicateCount,
+      terminationReason: normalized.diagnostics.terminationReason,
+      errorCode: 'empty-response',
+    })
     throw new Error('The refreshed inventory did not contain publishable records.')
   }
 
@@ -193,7 +321,48 @@ export async function checkForMonthlyInventoryUpdate({
     fetchedAt: now.toISOString(),
     sourceVersion,
   })
-  await replaceCachedInventorySnapshotAndMarkRefresh(nextSnapshot, context.monthKey)
+  try {
+    await replaceCachedInventorySnapshotAndMarkRefresh(nextSnapshot, context.monthKey)
+  } catch (error) {
+    recordClientDiagnostic({
+      operation: 'inventory-refresh',
+      status: 'error',
+      durationMs: elapsedMilliseconds(startedAt),
+      responseSizeBytes: loadedInventory.diagnostics.responseSizeBytes,
+      requestCount: loadedInventory.diagnostics.requestCount,
+      pageCount: loadedInventory.diagnostics.pageCount,
+      sourceRowCount: loadedInventory.diagnostics.rawRecordCount,
+      validRowCount: normalized.diagnostics.validRecordCount,
+      invalidRowCount:
+        normalized.diagnostics.invalidCoordinateCount +
+        normalized.diagnostics.unnormalizableRecordCount,
+      duplicateCount:
+        loadedInventory.diagnostics.duplicateCount +
+        normalized.diagnostics.duplicateCount,
+      terminationReason: 'cache-write-failure',
+      errorCode: 'cache-write-failure',
+    })
+    throw error
+  }
+
+  recordClientDiagnostic({
+    operation: 'inventory-refresh',
+    status: 'success',
+    durationMs: elapsedMilliseconds(startedAt),
+    responseSizeBytes: loadedInventory.diagnostics.responseSizeBytes,
+    requestCount: loadedInventory.diagnostics.requestCount,
+    pageCount: loadedInventory.diagnostics.pageCount,
+    sourceRowCount: loadedInventory.diagnostics.rawRecordCount,
+    validRowCount: normalized.diagnostics.validRecordCount,
+    invalidRowCount:
+      normalized.diagnostics.invalidCoordinateCount +
+      normalized.diagnostics.unnormalizableRecordCount,
+    duplicateCount:
+      loadedInventory.diagnostics.duplicateCount +
+      normalized.diagnostics.duplicateCount,
+    terminationReason: loadedInventory.diagnostics.terminationReason,
+    sourceVersion,
+  })
 
   return {
     outcome: 'updated',

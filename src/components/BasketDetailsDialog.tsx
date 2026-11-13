@@ -11,9 +11,6 @@ import { useDialogFocus } from '../accessibility/useDialogFocus'
 import { copyComplaintDraft } from '../reporting/clipboard'
 import { NYC_311_COMPLAINT_FORM_URL } from '../reporting/nyc311'
 
-const DATASET_URL =
-  'https://data.cityofnewyork.us/dataset/DSNY-Litter-Basket-Inventory/8znf-7b2c'
-
 type BasketDetailsDialogProps = {
   basket: NormalizedBasket
   observations?: LocalObservation[]
@@ -79,6 +76,11 @@ export default function BasketDetailsDialog({
 
     try {
       const result = await callback()
+      if (action === 'exists') {
+        onClose()
+        return
+      }
+
       if (action === 'missing' && typeof result === 'string') {
         setReportDraft(result)
       }
@@ -200,13 +202,6 @@ export default function BasketDetailsDialog({
             </a>
           </div>
         )}
-
-        <p className="dialog-attribution">
-          Source:{' '}
-          <a href={DATASET_URL} target="_blank" rel="noreferrer">
-            NYC Open Data DSNY Litter Basket Inventory
-          </a>
-        </p>
       </section>
     </div>
   )

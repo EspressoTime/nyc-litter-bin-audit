@@ -58,6 +58,6 @@ The default deployment target is Vercel. The project is configured as a static V
 
 The MVP has no application backend, database, serverless function, account flow, or remote observation store. User observations remain in browser-local storage.
 
-The default map style is OpenFreeMap Liberty through MapLibre GL JS. It does not require a client API key; map attribution remains enabled and the style provider is replaceable.
+The default map style is OpenFreeMap Bright through MapLibre GL JS. It does not require a client API key; map attribution remains enabled and the style provider is replaceable.
 
 No deployment or external account connection is performed by the local project configuration.

@@ -21,7 +21,7 @@ This checklist breaks the requirements in `requirements.md` into independently c
   - [x] Keep the dataset ID and endpoint in one client data-loader configuration module.
 
 - [x] **TODO-004 — Confirm map style and tile provider** (7.1, NFR-001)
-  - [x] Select a MapLibre-compatible style/tile provider. *(Selected OpenFreeMap Liberty.)*
+  - [x] Select a MapLibre-compatible style/tile provider. *(Selected OpenFreeMap Bright.)*
   - [x] Verify public PWA usage rights, attribution requirements, rate limits, and mobile performance. *(Public instance has no registration/API-key requirement; attribution remains required; no SLA is assumed.)*
   - [x] Configure the provider without introducing a private backend credential.
 
@@ -112,7 +112,7 @@ This checklist breaks the requirements in `requirements.md` into independently c
   - [x] Render 🚨 when the current local user most recently reported the basket missing.
   - [x] Render exactly one status emoji per basket pin.
   - [x] Use Noto Color Emoji with a system emoji fallback for pin glyph rendering.
-  - [x] Keep the green-circle/black-border pins at the compact pre-emoji marker size.
+  - [x] Render pins without a background circle or border behind the emoji.
   - [x] Prevent basket IDs, street names, status words, and other application text from appearing as map labels or pin callouts.
   - [x] Provide accessible labels without rendering those labels on the map.
   - Implementation: `src/observations/status.ts` calculates viewer-local glyph semantics and `src/map/BasketMap.tsx` renders one compact data-driven Noto Color Emoji image per GeoJSON feature.
@@ -121,9 +121,9 @@ This checklist breaks the requirements in `requirements.md` into independently c
   - [x] Request geolocation only after a clear user action or purpose prompt.
   - [x] Center the map and show a user-location indicator after permission is granted.
   - [x] Handle denied, unavailable, and timed-out permissions.
-  - [x] Provide a visible “Locate me” action for later use.
+  - [x] Provide a visible `𖦏` “Locate me” action inside the MapLibre navigation control group for later use.
   - [x] Avoid continuous location tracking and location-history storage.
-  - Implementation: `src/map/BasketMap.tsx` exposes a one-shot location request through a visible App control and renders a single in-memory location dot; `src/map/location.ts` maps browser error states without persisting coordinates.
+  - Implementation: `src/map/BasketMap.tsx` adds a one-shot `𖦏` location request button to the existing MapLibre navigation control group and renders a single in-memory location dot; `src/map/location.ts` maps browser error states without persisting coordinates.
 
 - [x] **TODO-017 — Implement NYC address/place search** (FR-005, UF-002)
   - [x] Add a debounced search input and suggestion list.
@@ -131,6 +131,8 @@ This checklist breaks the requirements in `requirements.md` into independently c
   - [x] Ignore stale responses when a newer query has been entered.
   - [x] Fly to the selected GeoJSON coordinate while preserving all basket pins.
   - [x] Handle no results, non-NYC results, timeouts, and provider errors.
+  - [x] Normalize and rank search results, including a short numeric-token fallback such as `9053 1` → `9053 176`.
+  - [x] Clear search status guidance after a result is selected; keep status text limited to active search outcomes.
   - Implementation: `src/search/PlaceSearch.tsx` provides debounced autocomplete and forward search; the map’s `flyToLocation` handle preserves the full basket source.
 
 - [x] **TODO-018 — Implement map loading and empty states** (FR-012)
@@ -174,8 +176,9 @@ This checklist breaks the requirements in `requirements.md` into independently c
   - [x] Save the local `exists` observation without a network request.
   - [x] Update the pin and detail view to 🚮 immediately.
   - [x] Display the observation date in the detail view.
+  - [x] Dismiss the basket details modal automatically after a successful save.
   - [x] Handle storage errors without claiming success.
-  - Implementation: `src/App.tsx` loads local observations, persists confirmations, and passes current observations into the map and dialog; `src/components/BasketDetailsDialog.tsx` performs the action directly, displays the date, and exposes recoverable storage-error state.
+  - Implementation: `src/App.tsx` loads local observations, persists confirmations, and passes current observations into the map and dialog; `src/components/BasketDetailsDialog.tsx` performs the action directly, displays the date, dismisses after success, and exposes recoverable storage-error state.
 
 - [x] **TODO-023 — Implement Report Missing** (FR-009, UF-005)
   - [x] Perform the local observation action directly from “Report Missing.”
@@ -254,17 +257,20 @@ This checklist breaks the requirements in `requirements.md` into independently c
   - [x] If no local or bundled inventory exists, show a retry/error state without fabricating pins.
   - Implementation: Vite PWA precaches the app shell and uses a `CacheFirst` runtime route for the bundled inventory JSON; `src/local-store/inventory-cache.ts`, observation storage, and user-pin storage provide local offline reads/writes; `src/App.tsx` skips scheduled Socrata checks offline and exposes cached-data/no-local-inventory states; `scripts/verify-pwa.mjs` verifies the offline package configuration.
 
-- [ ] **TODO-030 — Add responsive and performance optimizations** (NFR-001)
-  - [ ] Test representative mobile and desktop viewports.
-  - [ ] Measure initial shell interactivity and map rendering performance.
-  - [ ] Optimize marker rendering, GeoJSON sources, and clustering if required.
-  - [ ] Verify the map remains usable at NYC-wide extent.
-  - [ ] Debounce search and prevent stale responses from overwriting current results.
+- [x] **TODO-030 — Add responsive and performance optimizations** (NFR-001)
+  - [x] Test representative mobile and desktop viewports.
+  - [x] Measure initial shell interactivity and map rendering performance.
+  - [x] Add zoom-based marker sizing so pins are smaller at NYC-wide extent and slightly larger when zoomed in.
+  - [x] Optimize marker rendering with separate GeoJSON source layers and requestAnimationFrame-throttled zoom-size updates; clustering is not required by the current profiling coverage.
+  - [x] Verify the map remains usable at NYC-wide extent.
+  - [x] Debounce search and prevent stale responses from overwriting current results.
+  - Implementation: `e2e/responsive-performance.spec.ts` runs against the configured desktop and mobile Playwright projects, records startup/map timings, and checks map bounds, canvas rendering, controls, and horizontal overflow; `src/search/PlaceSearch.test.tsx` covers stale response suppression; `src/map/BasketMap.tsx` keeps official/local pins in separate GeoJSON layers and throttles zoom-size updates to animation frames.
 
-- [ ] **TODO-031 — Add client diagnostics** (NFR-007)
-  - [ ] Record local data-loader status, duration, response size, source row count, valid row count, invalid row count, duplicate count, and termination reason.
-  - [ ] Exclude local observation contents and unnecessary precise location data from diagnostics.
-  - [ ] Add development/release checks for schema failures, zero-row responses, repeated refresh failures, and abnormal row-count changes.
+- [x] **TODO-031 — Add client diagnostics** (NFR-007)
+  - [x] Record local data-loader status, duration, response size, source row count, valid row count, invalid row count, duplicate count, and termination reason.
+  - [x] Exclude local observation contents and unnecessary precise location data from diagnostics.
+  - [x] Add development/release checks for schema failures, zero-row responses, repeated refresh failures, and abnormal row-count changes.
+  - Implementation: `src/diagnostics/client-diagnostics.ts` stores a bounded local-only diagnostics journal with anomaly detection; `src/data-loader/monthly-refresh.ts` records metadata checks, refresh outcomes, validation counts, and safe error categories; `src/local-store/inventory-cache.ts` records bundled/cache load outcomes; `src/data-loader/inventory-loader.ts` measures response bytes and stops safely on repeated offset pages. Tests cover privacy boundaries and all NFR-007 anomaly checks.
 
 ## Phase 6 — Testing and verification
 

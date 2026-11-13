@@ -20,11 +20,13 @@ import {
   reconfirmLocalUserPin,
   type LocalUserPin,
 } from './local-store/user-pins-store'
-import type { LocationState } from './map/location'
 import type { LocalObservation, LocalObservationStatus } from './observations/status'
 import { buildComplaintDraft } from './reporting/complaint-draft'
-import PlaceSearch from './search/PlaceSearch'
+import PlaceSearch, { type PlaceSearchHandle } from './search/PlaceSearch'
 import { checkForMonthlyInventoryUpdate } from './data-loader/monthly-refresh'
+
+const DATASET_URL =
+  'https://data.cityofnewyork.us/dataset/DSNY-Litter-Basket-Inventory/8znf-7b2c'
 
 type InventoryState =
   | { status: 'loading' }
@@ -59,9 +61,9 @@ export default function App() {
     [number, number] | null
   >(null)
   const [userPinError, setUserPinError] = useState<string | null>(null)
-  const [locationState, setLocationState] = useState<LocationState>('idle')
   const [refreshError, setRefreshError] = useState<string | null>(null)
   const mapRef = useRef<BasketMapHandle>(null)
+  const placeSearchRef = useRef<PlaceSearchHandle>(null)
   const [isOnline, setIsOnline] = useState(() =>
     typeof navigator === 'undefined' ? true : navigator.onLine,
   )
@@ -311,16 +313,7 @@ export default function App() {
           </p>
         )}
         <header className="app-header">
-          <div>
-            <p className="app-kicker">NYC civic tools</p>
-            <h1 id="app-title">NYC Litter Baskets</h1>
-            <p className="app-subtitle">Official DSNY locations, on one quiet map.</p>
-          </div>
-          {inventoryState.status === 'ready' && (
-            <p className="app-location-count">
-              {inventoryState.snapshot.baskets.length.toLocaleString()} locations
-            </p>
-          )}
+          <h1 id="app-title">🗑️ NYC Litter Binventory 🗑️</h1>
         </header>
         <section className="map-card" aria-labelledby="map-title">
           <h2 id="map-title" className="visually-hidden">
@@ -328,27 +321,11 @@ export default function App() {
           </h2>
           {inventoryState.status === 'ready' && (
             <PlaceSearch
+              ref={placeSearchRef}
               onSelect={(result) =>
                 mapRef.current?.flyToLocation([result.longitude, result.latitude])
               }
             />
-          )}
-          {inventoryState.status === 'ready' && (
-            <div className="map-overlay-actions" aria-label="Map actions">
-              <button
-                type="button"
-                className="map-action-button"
-                aria-label={
-                  locationState === 'requesting'
-                    ? 'Locating your position'
-                    : 'Locate me'
-                }
-                onClick={() => mapRef.current?.requestLocation()}
-                disabled={locationState === 'requesting'}
-              >
-                <span aria-hidden="true">⌖</span>
-              </button>
-            </div>
           )}
           {inventoryState.status === 'loading' && (
             <div className="map-state map-state-loading">
@@ -398,13 +375,8 @@ export default function App() {
                 onSelect={handleSelectBasket}
                 onSelectUserPin={handleSelectUserPin}
                 onLongPress={handleLongPress}
-                onLocationStateChange={setLocationState}
+                onLocate={() => placeSearchRef.current?.clearStatus()}
               />
-              {selectedBasket && (
-                <p className="map-selection" role="status">
-                  Basket selected near {selectedBasket.streetName1 ?? 'this location'}.
-                </p>
-              )}
             </>
           )}
           {(refreshError || observationError || userPinError) && (
@@ -426,6 +398,18 @@ export default function App() {
               )}
             </div>
           )}
+        </section>
+        <section className="about-section" aria-label="About NYC Litter Binventory">
+          <p className="app-about">
+            NYC Litter Binventory helps identify and report missing litter baskets
+            around NYC. Collaborative features coming soon :)
+          </p>
+          <p className="app-attribution">
+            Source:{' '}
+            <a href={DATASET_URL} target="_blank" rel="noreferrer">
+              NYC Open Data DSNY Litter Basket Inventory
+            </a>
+          </p>
         </section>
         {selectedBasket && isBasketDialogOpen && (
           <BasketDetailsDialog

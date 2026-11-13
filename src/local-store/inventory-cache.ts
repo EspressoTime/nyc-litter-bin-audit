@@ -8,6 +8,7 @@ import {
 import { NYC_COORDINATE_BOUNDS } from '../baskets/validation'
 import { SOCRATA_CONFIG } from '../data-loader/config'
 import { BUNDLED_INVENTORY_SNAPSHOT_PATH } from '../data-loader/snapshot'
+import { recordClientDiagnostic } from '../diagnostics/client-diagnostics'
 
 export const INVENTORY_CACHE_DB_NAME = 'nyc-litter-basket-locator'
 export const INVENTORY_CACHE_DB_VERSION = 2
@@ -312,9 +313,9 @@ export async function claimInventoryMetadataCheck(
   }
 }
 
-export async function fetchBundledInventorySnapshot(
+async function fetchBundledInventorySnapshotWithDiagnostics(
   fetcher: SnapshotFetcher = fetch,
-): Promise<NormalizedInventorySnapshot> {
+): Promise<{ snapshot: NormalizedInventorySnapshot; responseSizeBytes: number }> {
   const response = await fetcher(BUNDLED_INVENTORY_SNAPSHOT_PATH)
 
   if (!response.ok) {
@@ -324,14 +325,34 @@ export async function fetchBundledInventorySnapshot(
     )
   }
 
-  const snapshot: unknown = await response.json()
+  const body = await response.arrayBuffer()
+  const responseSizeBytes = body.byteLength
+  let snapshot: unknown
+
+  try {
+    snapshot = JSON.parse(new TextDecoder().decode(body))
+  } catch {
+    throw new InventoryCacheError(
+      'Bundled inventory response was not valid JSON.',
+      'invalid',
+    )
+  }
+
   assertValidInventorySnapshot(snapshot)
-  return snapshot
+  return { snapshot, responseSizeBytes }
+}
+
+export async function fetchBundledInventorySnapshot(
+  fetcher: SnapshotFetcher = fetch,
+): Promise<NormalizedInventorySnapshot> {
+  const result = await fetchBundledInventorySnapshotWithDiagnostics(fetcher)
+  return result.snapshot
 }
 
 export async function loadInventorySnapshot(
   fetcher: SnapshotFetcher = fetch,
 ): Promise<InventorySnapshotLoadResult> {
+  const startedAt = Date.now()
   let cached: NormalizedInventorySnapshot | undefined
   let cacheReadError: unknown
 
@@ -342,10 +363,44 @@ export async function loadInventorySnapshot(
   }
 
   if (cached) {
+    recordClientDiagnostic({
+      operation: 'inventory-load',
+      status: 'cached',
+      durationMs: Math.max(0, Date.now() - startedAt),
+      sourceRowCount: cached.baskets.length,
+      validRowCount: cached.baskets.length,
+      invalidRowCount: 0,
+      duplicateCount: 0,
+      terminationReason: 'indexeddb-cache',
+      sourceVersion: cached.metadata.sourceVersion,
+    })
     return { snapshot: cached, source: 'indexeddb' }
   }
 
-  const bundled = await fetchBundledInventorySnapshot(fetcher)
+  let bundledResult: {
+    snapshot: NormalizedInventorySnapshot
+    responseSizeBytes: number
+  }
+
+  try {
+    bundledResult = await fetchBundledInventorySnapshotWithDiagnostics(fetcher)
+  } catch (error) {
+    recordClientDiagnostic({
+      operation: 'inventory-load',
+      status: 'error',
+      durationMs: Math.max(0, Date.now() - startedAt),
+      terminationReason: 'bundled-inventory-load-failure',
+      errorCode:
+        error instanceof InventoryCacheError && error.reason === 'invalid'
+          ? 'schema-failure'
+          : error instanceof InventoryCacheError && error.reason === 'empty'
+            ? 'empty-response'
+            : 'inventory-request-failure',
+    })
+    throw error
+  }
+
+  const bundled = bundledResult.snapshot
   let cacheWriteError: unknown
 
   try {
@@ -353,6 +408,20 @@ export async function loadInventorySnapshot(
   } catch (error) {
     cacheWriteError = error
   }
+
+  recordClientDiagnostic({
+    operation: 'inventory-load',
+    status: 'success',
+    durationMs: Math.max(0, Date.now() - startedAt),
+    responseSizeBytes: bundledResult.responseSizeBytes,
+    sourceRowCount: bundled.baskets.length,
+    validRowCount: bundled.baskets.length,
+    invalidRowCount: 0,
+    duplicateCount: 0,
+    terminationReason: 'bundled-inventory',
+    sourceVersion: bundled.metadata.sourceVersion,
+    ...(cacheWriteError ? { errorCode: 'cache-write-failure' as const } : {}),
+  })
 
   return {
     snapshot: bundled,

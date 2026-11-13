@@ -23,23 +23,66 @@ const PIN_IMAGE_IDS = {
   confirmed: 'basket-pin-confirmed',
   missing: 'basket-pin-missing',
 } as const
-const PIN_CIRCLE_FILL = '#3C7203'
-const PIN_CIRCLE_STROKE = '#000000'
 const PIN_EMOJI_FONT_FAMILY =
-  'Noto Color Emoji, Segoe UI Emoji, Apple Color Emoji, sans-serif'
-const PIN_ICON_SIZE = 0.6
-const SELECTED_PIN_ICON_SIZE = 0.75
-const PIN_FALLBACK_CIRCLE_RADIUS = 10
-const PIN_FALLBACK_TEXT_SIZE = 16
-const pinSvg = (glyph: string) =>
-  `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="29" fill="${PIN_CIRCLE_FILL}" stroke="${PIN_CIRCLE_STROKE}" stroke-width="3"/><text x="32" y="47" text-anchor="middle" font-family="${PIN_EMOJI_FONT_FAMILY}" font-size="40">${glyph}</text></svg>`
-const PIN_IMAGE_URLS = {
-  unconfirmed: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(pinSvg('🗑️'))}`,
-  confirmed: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(pinSvg('🚮'))}`,
-  missing: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(pinSvg('🚨'))}`,
+  '"Noto Color Emoji", "Segoe UI Emoji", "Apple Color Emoji", sans-serif'
+const PIN_ICON_SIZE_STOPS = [
+  [8, 0.2],
+  [11, 0.45],
+  [14, 0.9],
+  [17, 1.4],
+] as const
+const PIN_FALLBACK_TEXT_SIZE_STOPS = [
+  [8, 8],
+  [11, 14],
+  [14, 28],
+  [17, 42],
+] as const
+const PIN_GLYPHS = {
+  unconfirmed: '🗑️',
+  confirmed: '🚮',
+  missing: '🚨',
 } as const
 const USER_PIN_IMAGE_ID = 'local-user-pin'
-const USER_PIN_IMAGE_URL = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(pinSvg('📍'))}`
+const USER_PIN_GLYPH = '📍'
+
+function interpolateZoomValue(
+  zoom: number,
+  stops: readonly (readonly [number, number])[],
+): number {
+  const firstStop = stops[0]
+  const lastStop = stops[stops.length - 1]
+  if (!firstStop || !lastStop) {
+    return 0
+  }
+
+  if (zoom <= firstStop[0]) {
+    return firstStop[1]
+  }
+  if (zoom >= lastStop[0]) {
+    return lastStop[1]
+  }
+
+  for (let index = 1; index < stops.length; index += 1) {
+    const previous = stops[index - 1]
+    const current = stops[index]
+    if (!previous || !current || zoom > current[0]) {
+      continue
+    }
+
+    const progress = (zoom - previous[0]) / (current[0] - previous[0])
+    return previous[1] + progress * (current[1] - previous[1])
+  }
+
+  return lastStop[1]
+}
+
+export function getPinIconSizeForZoom(zoom: number): number {
+  return interpolateZoomValue(zoom, PIN_ICON_SIZE_STOPS)
+}
+
+export function getPinFallbackTextSizeForZoom(zoom: number): number {
+  return interpolateZoomValue(zoom, PIN_FALLBACK_TEXT_SIZE_STOPS)
+}
 
 export type BasketFeatureCollection = {
   type: 'FeatureCollection'
@@ -78,6 +121,7 @@ export type BasketMapProps = {
   onSelect?: (basket: NormalizedBasket) => void
   onSelectUserPin?: (pin: LocalUserPin) => void
   onLongPress?: (coordinates: [number, number]) => void
+  onLocate?: () => void
   onLocationStateChange?: (state: LocationState) => void
 }
 
@@ -132,7 +176,38 @@ export function toUserPinFeatureCollection(
   }
 }
 
-function loadBasketPinImages(map: maplibregl.Map): Promise<void[]> {
+async function createPinImage(glyph: string): Promise<ImageData> {
+  if (typeof document === 'undefined') {
+    throw new Error('Pin images require a browser document.')
+  }
+
+  if (typeof document.fonts?.load === 'function') {
+    try {
+      await document.fonts.load(`40px ${PIN_EMOJI_FONT_FAMILY}`)
+    } catch {
+      // Canvas will still render using the next available emoji fallback.
+    }
+  }
+
+  const canvas = document.createElement('canvas')
+  canvas.width = 64
+  canvas.height = 64
+  const context = canvas.getContext('2d')
+  if (!context) {
+    throw new Error('Pin images require canvas support.')
+  }
+
+  context.clearRect(0, 0, canvas.width, canvas.height)
+  context.fillStyle = '#000000'
+  context.font = `40px ${PIN_EMOJI_FONT_FAMILY}`
+  context.textAlign = 'center'
+  context.textBaseline = 'middle'
+  context.fillText(glyph, 32, 32)
+
+  return context.getImageData(0, 0, canvas.width, canvas.height)
+}
+
+async function loadBasketPinImages(map: maplibregl.Map): Promise<void[]> {
   return Promise.all(
     (Object.keys(PIN_IMAGE_IDS) as Array<keyof typeof PIN_IMAGE_IDS>).map((status) => {
       const imageId = PIN_IMAGE_IDS[status]
@@ -140,25 +215,24 @@ function loadBasketPinImages(map: maplibregl.Map): Promise<void[]> {
         return Promise.resolve()
       }
 
-      return map.loadImage(PIN_IMAGE_URLS[status]).then((image) => {
+      return createPinImage(PIN_GLYPHS[status]).then((imageData) => {
         if (!map.hasImage(imageId)) {
-          map.addImage(imageId, image.data, { pixelRatio: 2 })
+          map.addImage(imageId, imageData, { pixelRatio: 2 })
         }
       })
     }),
   )
 }
 
-function loadUserPinImage(map: maplibregl.Map): Promise<void> {
+async function loadUserPinImage(map: maplibregl.Map): Promise<void> {
   if (map.hasImage(USER_PIN_IMAGE_ID)) {
     return Promise.resolve()
   }
 
-  return map.loadImage(USER_PIN_IMAGE_URL).then((image) => {
-    if (!map.hasImage(USER_PIN_IMAGE_ID)) {
-      map.addImage(USER_PIN_IMAGE_ID, image.data, { pixelRatio: 2 })
-    }
-  })
+  const imageData = await createPinImage(USER_PIN_GLYPH)
+  if (!map.hasImage(USER_PIN_IMAGE_ID)) {
+    map.addImage(USER_PIN_IMAGE_ID, imageData, { pixelRatio: 2 })
+  }
 }
 
 export function prefersReducedMotion(): boolean {
@@ -190,6 +264,7 @@ const BasketMap = forwardRef<BasketMapHandle, BasketMapProps>(function BasketMap
     onSelect,
     onSelectUserPin,
     onLongPress,
+    onLocate,
     onLocationStateChange,
   },
   ref,
@@ -199,7 +274,9 @@ const BasketMap = forwardRef<BasketMapHandle, BasketMapProps>(function BasketMap
   const onSelectRef = useRef(onSelect)
   const onSelectUserPinRef = useRef(onSelectUserPin)
   const onLongPressRef = useRef(onLongPress)
+  const onLocateRef = useRef(onLocate)
   const onLocationStateChangeRef = useRef(onLocationStateChange)
+  const locateButtonRef = useRef<HTMLButtonElement | null>(null)
   const basketsRef = useRef(baskets)
   const observationsRef = useRef(observations)
   const userPinsRef = useRef(userPins)
@@ -228,6 +305,10 @@ const BasketMap = forwardRef<BasketMapHandle, BasketMapProps>(function BasketMap
   }, [onLongPress])
 
   useEffect(() => {
+    onLocateRef.current = onLocate
+  }, [onLocate])
+
+  useEffect(() => {
     onLocationStateChangeRef.current = onLocationStateChange
   }, [onLocationStateChange])
 
@@ -254,19 +335,33 @@ const BasketMap = forwardRef<BasketMapHandle, BasketMapProps>(function BasketMap
   }
 
   const requestLocation = () => {
+    onLocateRef.current?.()
+
+    const updateLocationState = (state: LocationState) => {
+      const locateButton = locateButtonRef.current
+      if (locateButton) {
+        locateButton.disabled = state === 'requesting'
+        locateButton.setAttribute(
+          'aria-label',
+          state === 'requesting' ? 'Locating your position' : 'Locate me',
+        )
+      }
+      onLocationStateChangeRef.current?.(state)
+    }
+
     if (!navigator.geolocation) {
-      onLocationStateChangeRef.current?.('unavailable')
+      updateLocationState('unavailable')
       return
     }
 
-    onLocationStateChangeRef.current?.('requesting')
+    updateLocationState('requesting')
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setUserLocation([position.coords.longitude, position.coords.latitude])
-        onLocationStateChangeRef.current?.('located')
+        updateLocationState('located')
       },
       (error) => {
-        onLocationStateChangeRef.current?.(getLocationErrorState(error.code))
+        updateLocationState(getLocationErrorState(error.code))
       },
       LOCATION_OPTIONS,
     )
@@ -311,7 +406,52 @@ const BasketMap = forwardRef<BasketMapHandle, BasketMapProps>(function BasketMap
       zoom: MAP_CONFIG.zoom,
     })
     mapRef.current = map
+
+    let pinSizeFrame: number | null = null
+    const updatePinSizes = () => {
+      if (pinSizeFrame !== null) {
+        return
+      }
+
+      pinSizeFrame = window.requestAnimationFrame(() => {
+        pinSizeFrame = null
+        const iconSize = getPinIconSizeForZoom(map.getZoom())
+        const fallbackTextSize = getPinFallbackTextSizeForZoom(map.getZoom())
+
+        for (const layerId of [BASKET_LAYER_ID, USER_PIN_LAYER_ID]) {
+          if (!map.getLayer(layerId)) {
+            continue
+          }
+
+          if (map.getLayoutProperty(layerId, 'icon-image') !== undefined) {
+            map.setLayoutProperty(layerId, 'icon-size', iconSize)
+          }
+          if (map.getLayoutProperty(layerId, 'text-field') !== undefined) {
+            map.setLayoutProperty(layerId, 'text-size', fallbackTextSize)
+          }
+        }
+      })
+    }
+
+    map.on('zoom', updatePinSizes)
     map.addControl(new maplibregl.NavigationControl(), 'top-right')
+
+    const locateButton = document.createElement('button')
+    locateButton.type = 'button'
+    locateButton.className = 'maplibregl-ctrl-locate'
+    locateButton.setAttribute('aria-label', 'Locate me')
+    locateButton.title = 'Locate me'
+    const locateIcon = document.createElement('span')
+    locateIcon.setAttribute('aria-hidden', 'true')
+    locateIcon.textContent = '𖦏'
+    locateButton.append(locateIcon)
+    locateButton.addEventListener('click', requestLocation)
+
+    const navigationGroup = map
+      .getContainer()
+      .querySelector<HTMLElement>('.maplibregl-ctrl-top-right .maplibregl-ctrl-group')
+    navigationGroup?.append(locateButton)
+    locateButtonRef.current = locateButton
 
     const handlePinClick = (
       event: MapMouseEvent & { features?: maplibregl.MapGeoJSONFeature[] },
@@ -509,12 +649,7 @@ const BasketMap = forwardRef<BasketMapHandle, BasketMapProps>(function BasketMap
               source: BASKET_SOURCE_ID,
               layout: {
                 'icon-image': ['get', 'pinImageId'],
-                'icon-size': [
-                  'case',
-                  ['boolean', ['feature-state', 'selected'], false],
-                  SELECTED_PIN_ICON_SIZE,
-                  PIN_ICON_SIZE,
-                ],
+                'icon-size': getPinIconSizeForZoom(map.getZoom()),
                 'icon-allow-overlap': true,
                 'icon-ignore-placement': true,
               },
@@ -527,23 +662,12 @@ const BasketMap = forwardRef<BasketMapHandle, BasketMapProps>(function BasketMap
         })
         .catch(() => {
           map.addLayer({
-            id: `${BASKET_LAYER_ID}-fallback-background`,
-            type: 'circle',
-            source: BASKET_SOURCE_ID,
-            paint: {
-              'circle-radius': PIN_FALLBACK_CIRCLE_RADIUS,
-              'circle-color': PIN_CIRCLE_FILL,
-              'circle-stroke-color': PIN_CIRCLE_STROKE,
-              'circle-stroke-width': 2,
-            },
-          })
-          map.addLayer({
             id: BASKET_LAYER_ID,
             type: 'symbol',
             source: BASKET_SOURCE_ID,
             layout: {
               'text-field': ['get', 'glyph'],
-              'text-size': PIN_FALLBACK_TEXT_SIZE,
+              'text-size': getPinFallbackTextSizeForZoom(map.getZoom()),
               'text-allow-overlap': true,
               'text-ignore-placement': true,
             },
@@ -561,7 +685,7 @@ const BasketMap = forwardRef<BasketMapHandle, BasketMapProps>(function BasketMap
             source: USER_PIN_SOURCE_ID,
             layout: {
               'icon-image': ['get', 'pinImageId'],
-              'icon-size': PIN_ICON_SIZE,
+              'icon-size': getPinIconSizeForZoom(map.getZoom()),
               'icon-allow-overlap': true,
               'icon-ignore-placement': true,
             },
@@ -578,23 +702,12 @@ const BasketMap = forwardRef<BasketMapHandle, BasketMapProps>(function BasketMap
         .catch(() => {
           if (map.getSource(USER_PIN_SOURCE_ID) && !map.getLayer(USER_PIN_LAYER_ID)) {
             map.addLayer({
-              id: `${USER_PIN_LAYER_ID}-fallback-background`,
-              type: 'circle',
-              source: USER_PIN_SOURCE_ID,
-              paint: {
-                'circle-radius': PIN_FALLBACK_CIRCLE_RADIUS,
-                'circle-color': PIN_CIRCLE_FILL,
-                'circle-stroke-color': PIN_CIRCLE_STROKE,
-                'circle-stroke-width': 2,
-              },
-            })
-            map.addLayer({
               id: USER_PIN_LAYER_ID,
               type: 'symbol',
               source: USER_PIN_SOURCE_ID,
               layout: {
                 'text-field': ['get', 'glyph'],
-                'text-size': PIN_FALLBACK_TEXT_SIZE,
+                'text-size': getPinFallbackTextSizeForZoom(map.getZoom()),
                 'text-allow-overlap': true,
                 'text-ignore-placement': true,
               },
@@ -616,6 +729,13 @@ const BasketMap = forwardRef<BasketMapHandle, BasketMapProps>(function BasketMap
       canvas.removeEventListener('pointermove', handlePointerMove)
       canvas.removeEventListener('pointerup', handlePointerUp)
       canvas.removeEventListener('pointercancel', handlePointerCancel)
+      map.off('zoom', updatePinSizes)
+      if (pinSizeFrame !== null) {
+        window.cancelAnimationFrame(pinSizeFrame)
+      }
+      locateButton.removeEventListener('click', requestLocation)
+      locateButton.remove()
+      locateButtonRef.current = null
       map.remove()
       mapRef.current = null
     }

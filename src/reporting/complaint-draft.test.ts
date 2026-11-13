@@ -23,12 +23,11 @@ describe('buildComplaintDraft', () => {
         observedAt: '2026-11-12T15:00:00.000Z',
       }),
     ).toBe(
-      'I could not find the public litter basket listed in the DSNY Litter Basket Inventory at Broadway and W 34th St (NE corner).\n' +
+      'On November 12, 2026, I observed a missing public litter basket at the location listed in the DSNY Litter Basket Inventory at Broadway and W 34th St (NE corner).\n' +
         'Basket ID: B-100.\n' +
         'Borough: MANHATTAN.\n' +
         'District: MN05.\n' +
-        'I observed this on November 12, 2026.\n' +
-        'Please investigate the location and replace the basket if appropriate.',
+        'Please investigate the location and replace the basket. Thank you! :)',
     )
   })
 
@@ -47,9 +46,8 @@ describe('buildComplaintDraft', () => {
         observedAt: '2026-11-12T15:00:00.000Z',
       }),
     ).toBe(
-      'I could not find the public litter basket listed in the DSNY Litter Basket Inventory at the listed official location.\n' +
-        'I observed this on November 12, 2026.\n' +
-        'Please investigate the location and replace the basket if appropriate.',
+      'On November 12, 2026, I observed a missing public litter basket at the location listed in the DSNY Litter Basket Inventory at the listed official location.\n' +
+        'Please investigate the location and replace the basket. Thank you! :)',
     )
   })
 })

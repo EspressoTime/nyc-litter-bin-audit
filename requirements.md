@@ -159,10 +159,10 @@ The application shall provide pan, zoom, recenter, and pin selection. Basket pin
 - Given valid inventory data, when the map renders, then every valid basket record in the loaded inventory has one selectable map representation.
 - When the user pans or zooms, then the map remains responsive and the selected detail view does not display data for a different pin.
 - Each basket marker displays exactly one status emoji: 🗑️, 🚮, or 🚨.
-- Emoji glyphs use the selected Noto Color Emoji web font with a system emoji fallback, and the green circle/black border pin footprint remains at the compact pre-emoji marker size.
+- Emoji glyphs use the selected Noto Color Emoji web font with a system emoji fallback, with no background circle or border behind the glyph.
 - Basket IDs, street names, status words, and other application text are not rendered as labels on the map; they appear only in dialogs or other non-map UI. The basket ID is specifically excluded from the basket details dialog.
 - The floating search bar reserves space for the map zoom controls, and all map controls remain visible at supported screen sizes.
-- “Locate me” is an icon-only control positioned below the map zoom controls; no separate “Add pin” button is displayed.
+- “Locate me” is an icon-only `𖦏` control inside the existing MapLibre navigation control group with the zoom and compass buttons; no separate overlay control or “Add pin” button is displayed.
 
 ### FR-003 — All official basket pins
 
@@ -193,7 +193,9 @@ The application shall provide address and place search using an NYC-focused geoc
 
 - When the user types a query, the app debounces requests and shows matching NYC suggestions.
 - When a suggestion is selected, the app centers the map on its GeoJSON coordinate and preserves the basket layer.
+- Search matching is case-insensitive, tolerant of repeated whitespace and punctuation, ranks the closest provider matches first, and supports short partial numeric address tokens (for example, `9053 1` can surface `9053 176`).
 - Search failures, empty results, and non-NYC results produce understandable recovery guidance.
+- Search status guidance is shown only for an active search interaction and clears when a result is selected or the user uses the map’s Locate me control.
 - The geocoder provider is isolated behind an adapter so it can be replaced without changing map or basket code.
 
 ### FR-006 — Pin glyph semantics
@@ -229,6 +231,7 @@ The application shall let the current user record that a basket is present.
 - Clicking “Confirm Exists” immediately attempts the local observation write without a secondary confirmation button.
 - A successful local save creates exactly one `exists` observation for the selected basket and observation timestamp.
 - On success, the map and detail view update to 🚮 without a full page reload.
+- After a successful local save, the basket details modal dismisses automatically.
 - The UI displays the observation date and explains that 🚮 means this user confirmed the location within 30 days.
 - If the write fails, the UI retains the prior status and offers retry; it does not claim success.
 
@@ -341,15 +344,21 @@ The application shall keep the primary map controls visible and use a compact in
 **Acceptance criteria**
 
 - The floating address search bar does not overlap the map zoom controls at supported viewport widths.
-- The “Locate me” control is icon-only, has an accessible name, and is anchored below the map zoom controls.
+- The “Locate me” control uses the `𖦏` crosshairs icon, has an accessible name, and is a button inside the existing `maplibregl-ctrl maplibregl-ctrl-group` alongside the zoom and compass controls.
 - No standalone “Add pin” button is displayed; local pin placement remains available through the long-press map flow.
 - No “Your location is centered on the map.” status paragraph is rendered.
 - No basket-directory details section or standalone local-data details section is rendered or maintained by the page UI.
+- No `map-selection` status paragraph is rendered or maintained after a basket is selected; selection context is communicated through the details modal.
 - Selecting an address from the search suggestions closes the suggestion list after selection.
 - The basket details modal is compact: it omits the `basket-details-list`, `dialog-note`, and `eyebrow` elements.
 - “Confirm Exists” and “Report Missing” perform their local actions directly without a secondary confirmation control.
 - The official NYC 311 link remains a usable native external link; clicking it is not prevented by the modal backdrop.
-- Official and local emoji pins use Noto Color Emoji with a system emoji fallback and the compact pre-emoji marker footprint.
+- Official and local emoji pins use Noto Color Emoji with a system emoji fallback and no background circle or border.
+- The header does not render the `app-kicker`, `app-subtitle`, or `app-location-count` elements.
+- The page title is “🗑️ NYC Litter Binventory 🗑️.”
+- An about section below the map displays: “NYC Litter Binventory helps identify and report missing litter baskets around NYC. Collaborative features coming soon :)” using the former subtitle styling.
+- The application accent color is `#046307`, including primary action buttons, links, active/focus states, and other non-semantic accent treatments.
+- Header text uses Fraunces, and body copy and controls use Source Sans 3, with local system fallbacks if the web fonts are unavailable.
 
 ## 5. Data and API requirements
 
@@ -576,10 +585,9 @@ https://portal.311.nyc.gov/servicerequest-create/What?caid=794e51a3-3f16-ec11-b6
 The generated draft shall be conservative and factual. Example template:
 
 ```text
-I could not find the public litter basket listed in the DSNY Litter Basket
-Inventory at {location}. Basket ID: {basketId}. I observed this on
-{observedDate}. Please investigate the location and replace the basket if
-appropriate.
+On {observedDate}, I observed a missing public litter basket at the location
+listed in the DSNY Litter Basket Inventory at {location}. Basket ID: {basketId}.
+Please investigate the location and replace the basket. Thank you! :)
 ```
 
 **Acceptance criteria**
@@ -596,7 +604,7 @@ appropriate.
 |---|---|---|
 | UI | React + TypeScript | Componentized map, detail, search, and observation flows |
 | Build | Vite | Fast PWA development and static build output |
-| Map | MapLibre GL JS with OpenFreeMap Liberty style | Open vector map rendering with no client API key; provider remains replaceable |
+| Map | MapLibre GL JS with OpenFreeMap Bright style | Open vector map rendering with no client API key; provider remains replaceable |
 | PWA | `vite-plugin-pwa` or equivalent Workbox integration | Manifest, service worker, cache strategies |
 | Address search | NYC GeoSearch API adapter | NYC-focused autocomplete and forward search returning GeoJSON |
 | Official inventory | NYC Open Data Socrata API, called from the browser | DSNY source of truth |
@@ -817,7 +825,7 @@ Run a repeatable ingestion test against a recorded fixture and, separately, a co
 | Geolocation denied | Nearby experience is less automatic | Manual locate, address search, and browsable NYC-wide map |
 | 311 form changes | Handoff may become stale | Keep the link configurable and verify it during release checks |
 | Local browser data is cleared | User loses observation history | Explain local-only storage, provide clear status wording, and avoid implying cross-device persistence |
-| Large marker count harms mobile performance | Map becomes difficult to use | Use GeoJSON/source layers and clustering only when profiling demonstrates need |
+| Large marker count harms mobile performance | Map becomes difficult to use | Use zoom-based marker sizing first; add clustering only when profiling demonstrates need |
 
 ## 12. Source references
 

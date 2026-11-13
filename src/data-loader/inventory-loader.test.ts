@@ -144,7 +144,8 @@ describe('complete Socrata inventory loader', () => {
     })
 
     expect(result.diagnostics.strategy).toBe('offset-pagination')
+    expect(result.diagnostics.terminationReason).toBe('repeated-offset-page')
     expect(result.records).toHaveLength(1)
-    expect(requests).toHaveLength(2)
+    expect(requests).toHaveLength(3)
   })
 })

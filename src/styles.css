@@ -1,8 +1,12 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600..800&family=Noto+Color+Emoji&family=Source+Sans+3:wght@400;500;600;700&display=swap');
 
 :root {
+  --accent-color: #046307;
+  --accent-color-soft: #edf7ee;
+  --accent-focus: rgb(4 99 7 / 30%);
+  --accent-focus-strong: rgb(4 99 7 / 65%);
   font-family:
-    Inter,
+    'Source Sans 3',
     ui-sans-serif,
     system-ui,
     -apple-system,
@@ -13,6 +17,14 @@
   background: #f8fafc;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: Fraunces, Georgia, serif;
+  font-weight: 600;
 }
 
 * {
@@ -52,34 +64,12 @@ input {
   padding: 0.25rem 0.2rem;
 }
 
-.app-kicker {
-  margin: 0 0 0.25rem;
-  color: #166534;
-  font-size: 0.7rem;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
 .app-header h1 {
   margin: 0;
-  color: #0f172a;
+  color: var(--accent-color);
   font-size: clamp(1.55rem, 5vw, 2.35rem);
   letter-spacing: -0.04em;
   line-height: 1;
-}
-
-.app-subtitle {
-  margin: 0.45rem 0 0;
-  color: #64748b;
-  font-size: 0.9rem;
-}
-
-.app-location-count {
-  margin: 0 0 0.2rem;
-  color: #64748b;
-  font-size: 0.82rem;
-  white-space: nowrap;
 }
 
 .offline-banner {
@@ -181,7 +171,7 @@ h1 {
 .search-row input:focus,
 .search-button:focus,
 .search-suggestion:focus {
-  outline: 3px solid rgb(37 99 235 / 30%);
+  outline: 3px solid var(--accent-focus);
   outline-offset: 2px;
 }
 
@@ -192,14 +182,14 @@ select:focus-visible,
 textarea:focus-visible,
 summary:focus-visible,
 [tabindex]:focus-visible {
-  outline: 3px solid rgb(37 99 235 / 65%);
+  outline: 3px solid var(--accent-focus-strong);
   outline-offset: 3px;
 }
 
 .search-button {
   padding: 0.7rem 0.9rem;
   color: #ffffff;
-  background: #0f172a;
+  background: var(--accent-color);
   border: 0;
   border-radius: 0.6rem;
   cursor: pointer;
@@ -241,7 +231,7 @@ summary:focus-visible,
 
 .search-suggestion:hover,
 .search-suggestion.active {
-  background: #ecfdf5;
+  background: var(--accent-color-soft);
 }
 
 .search-message,
@@ -270,8 +260,7 @@ summary:focus-visible,
 
 .map-count,
 .map-message,
-.map-error,
-.map-selection {
+.map-error {
   margin: 0;
   color: #475569;
   line-height: 1.5;
@@ -297,33 +286,19 @@ summary:focus-visible,
   gap: 0.35rem;
 }
 
-.map-overlay-actions {
-  position: absolute;
-  z-index: 2;
-  top: 6.5rem;
-  right: 1rem;
-  display: grid;
-  gap: 0.5rem;
-}
-
-.map-action-button {
-  display: inline-flex;
+.maplibregl-ctrl-locate {
   align-items: center;
+  display: flex;
   justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  padding: 0;
-  color: #0f172a;
-  background: rgb(255 255 255 / 94%);
-  border: 1px solid #cbd5e1;
-  border-radius: 0.7rem;
-  box-shadow: 0 0.5rem 1rem rgb(15 23 42 / 15%);
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 800;
 }
 
-.map-action-button:disabled {
+.maplibregl-ctrl-locate span {
+  font-family: 'Segoe UI Symbol', 'Noto Sans Symbols 2', sans-serif;
+  font-size: 1.15rem;
+  line-height: 1.6;
+}
+
+.maplibregl-ctrl-locate:disabled {
   cursor: wait;
   opacity: 0.65;
 }
@@ -346,17 +321,28 @@ summary:focus-visible,
 .retry-button {
   padding: 0.6rem 0.8rem;
   color: #ffffff;
-  background: #0f172a;
+  background: var(--accent-color);
   border: 0;
   border-radius: 0.6rem;
   cursor: pointer;
   font-weight: 700;
 }
 
-.map-selection {
-  padding: 0.75rem 1rem;
-  background: #f1f5f9;
-  border-radius: 0.75rem;
+.about-section {
+  padding: 0 0.2rem;
+}
+
+.app-about {
+  margin: 0.45rem 0 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.app-attribution {
+  margin: 0.35rem 0 0;
+  color: #64748b;
+  font-size: 0.8rem;
+  line-height: 1.5;
 }
 
 .basket-map {
@@ -417,8 +403,7 @@ summary:focus-visible,
 
 .dialog-status,
 .dialog-note,
-.dialog-supporting-text,
-.dialog-attribution {
+.dialog-supporting-text {
   margin: 0;
   color: #475569;
   line-height: 1.5;
@@ -426,7 +411,7 @@ summary:focus-visible,
 
 .dialog-status {
   padding: 0.75rem 1rem;
-  color: #14532d;
+  color: var(--accent-color);
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
   border-radius: 0.7rem;
@@ -471,7 +456,7 @@ summary:focus-visible,
 
 .dialog-primary-button {
   color: #ffffff;
-  background: #166534;
+  background: var(--accent-color);
 }
 
 .dialog-secondary-button {
@@ -490,7 +475,7 @@ summary:focus-visible,
 .dialog-primary-button:focus,
 .dialog-secondary-button:focus,
 .dialog-cancel-button:focus {
-  outline: 3px solid rgb(37 99 235 / 30%);
+  outline: 3px solid var(--accent-focus);
   outline-offset: 2px;
 }
 
@@ -555,12 +540,12 @@ summary:focus-visible,
 }
 
 .report-preview textarea:focus {
-  outline: 3px solid rgb(37 99 235 / 30%);
+  outline: 3px solid var(--accent-focus);
   outline-offset: 2px;
 }
 
-.dialog-attribution a {
-  color: #1d4ed8;
+.app-attribution a {
+  color: var(--accent-color);
 }
 
 .visually-hidden {
@@ -582,10 +567,6 @@ summary:focus-visible,
     gap: 0.35rem;
   }
 
-  .app-location-count {
-    margin: 0;
-  }
-
   .search-row {
     gap: 0.4rem;
   }
@@ -593,15 +574,6 @@ summary:focus-visible,
   .basket-map {
     height: 68svh;
     min-height: 28rem;
-  }
-
-  .map-overlay-actions {
-    top: 6rem;
-    right: 0.75rem;
-  }
-
-  .map-action-button {
-    min-width: 2.6rem;
   }
 }
 
@@ -628,7 +600,7 @@ summary:focus-visible,
 .verification-heading button {
   padding: 0.65rem 0.9rem;
   color: white;
-  background: #0f172a;
+  background: var(--accent-color);
   border: 0;
   border-radius: 0.65rem;
   cursor: pointer;

@@ -72,9 +72,7 @@ describe('BasketDetailsDialog', () => {
     expect(screen.getByRole('button', { name: 'Close basket details' })).toHaveFocus()
 
     fireEvent.keyDown(document, { key: 'Tab', shiftKey: true })
-    expect(
-      screen.getByRole('link', { name: 'NYC Open Data DSNY Litter Basket Inventory' }),
-    ).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Close basket details' })).toHaveFocus()
 
     fireEvent.keyDown(document, { key: 'Tab' })
     expect(screen.getByRole('button', { name: 'Close basket details' })).toHaveFocus()
@@ -122,10 +120,11 @@ describe('BasketDetailsDialog', () => {
 
   it('saves an exists observation immediately', async () => {
     const onConfirmExists = vi.fn().mockResolvedValue(undefined)
+    const onClose = vi.fn()
     render(
       <BasketDetailsDialog
         basket={basket}
-        onClose={() => undefined}
+        onClose={onClose}
         onConfirmExists={onConfirmExists}
       />,
     )
@@ -133,6 +132,7 @@ describe('BasketDetailsDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm Exists' }))
 
     await waitFor(() => expect(onConfirmExists).toHaveBeenCalledOnce())
+    expect(onClose).toHaveBeenCalledOnce()
     expect(screen.queryByRole('button', { name: 'Confirm' })).not.toBeInTheDocument()
   })
 
@@ -173,7 +173,8 @@ describe('BasketDetailsDialog', () => {
   })
 
   it('shows an editable 311 draft returned after reporting missing', async () => {
-    const draft = 'I could not find the public litter basket at Broadway.'
+    const draft =
+      'On November 12, 2026, I observed a missing public litter basket at Broadway.'
     const onReportMissing = vi.fn().mockResolvedValue(draft)
     render(
       <BasketDetailsDialog
@@ -209,7 +210,8 @@ describe('BasketDetailsDialog', () => {
       configurable: true,
       value: { writeText },
     })
-    const draft = 'I could not find the public litter basket at Broadway.'
+    const draft =
+      'On November 12, 2026, I observed a missing public litter basket at Broadway.'
     const onReportMissing = vi.fn().mockResolvedValue(draft)
     render(
       <BasketDetailsDialog

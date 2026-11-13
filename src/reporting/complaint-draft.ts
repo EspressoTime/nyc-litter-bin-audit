@@ -32,7 +32,7 @@ export function buildComplaintDraft({
   observedAt,
 }: ComplaintDraftInput): string {
   const lines = [
-    `I could not find the public litter basket listed in the DSNY Litter Basket Inventory at ${getLocationContext(basket)}.`,
+    `On ${formatObservationDate(observedAt)}, I observed a missing public litter basket at the location listed in the DSNY Litter Basket Inventory at ${getLocationContext(basket)}.`,
   ]
   const basketId = nonEmpty(basket.basketId)
   const borough = nonEmpty(basket.borough)
@@ -48,10 +48,7 @@ export function buildComplaintDraft({
     lines.push(`District: ${district}.`)
   }
 
-  lines.push(
-    `I observed this on ${formatObservationDate(observedAt)}.`,
-    'Please investigate the location and replace the basket if appropriate.',
-  )
+  lines.push('Please investigate the location and replace the basket. Thank you! :)')
 
   return lines.join('\n')
 }
