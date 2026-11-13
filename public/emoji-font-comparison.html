@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Emoji Font Comparison</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        color: #172033;
+        background: #f4f7fb;
+        font-family: Inter, system-ui, sans-serif;
+      }
+
+      body {
+        margin: 0;
+        padding: 2rem;
+      }
+
+      main {
+        max-width: 60rem;
+        margin: 0 auto;
+      }
+
+      h1 {
+        margin: 0 0 0.5rem;
+      }
+
+      .intro {
+        color: #4c5870;
+        margin-bottom: 1.5rem;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+        gap: 1rem;
+      }
+
+      .card {
+        background: white;
+        border: 1px solid #d7deea;
+        border-radius: 1rem;
+        padding: 1rem;
+        box-shadow: 0 0.5rem 1.5rem rgb(23 32 51 / 8%);
+      }
+
+      .card h2 {
+        font-size: 1rem;
+        margin: 0;
+      }
+
+      .font-name {
+        color: #60708d;
+        font-size: 0.8rem;
+        margin: 0.25rem 0 0.75rem;
+      }
+
+      .samples {
+        display: flex;
+        gap: 1.25rem;
+        align-items: center;
+        font-size: 3rem;
+      }
+
+      .sample {
+        display: grid;
+        justify-items: center;
+        gap: 0.25rem;
+      }
+
+      .sample small {
+        color: #60708d;
+        font-family: Inter, system-ui, sans-serif;
+        font-size: 0.7rem;
+      }
+
+      .segoe {
+        font-family: 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
+      }
+
+      .noto {
+        font-family: 'Noto Color Emoji', sans-serif;
+      }
+
+      .twemoji {
+        font-family: 'Twemoji Mozilla', 'Twitter Color Emoji', sans-serif;
+      }
+
+      .apple {
+        font-family: 'Apple Color Emoji', sans-serif;
+      }
+
+      .note {
+        margin-top: 1.5rem;
+        padding: 0.9rem 1rem;
+        border-left: 0.25rem solid #3c7203;
+        background: #edf6e7;
+        color: #2d4f19;
+      }
+
+      code {
+        font-size: 0.85em;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Emoji font comparison</h1>
+      <p class="intro">
+        Same basket-state glyphs rendered with four font choices. The final map pin
+        styling will wait until one option is selected.
+      </p>
+
+      <section class="grid" aria-label="Emoji font options">
+        <article class="card">
+          <h2>Segoe UI Emoji</h2>
+          <p class="font-name"><code>"Segoe UI Emoji"</code> — Windows-native</p>
+          <div class="samples segoe" aria-label="Segoe UI Emoji samples">
+            <span class="sample">🗑️<small>unconfirmed</small></span>
+            <span class="sample">🚮<small>confirmed</small></span>
+            <span class="sample">🚨<small>missing</small></span>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Noto Color Emoji</h2>
+          <p class="font-name"><code>"Noto Color Emoji"</code> — Google/Linux-style</p>
+          <div class="samples noto" aria-label="Noto Color Emoji samples">
+            <span class="sample">🗑️<small>unconfirmed</small></span>
+            <span class="sample">🚮<small>confirmed</small></span>
+            <span class="sample">🚨<small>missing</small></span>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Twemoji</h2>
+          <p class="font-name">
+            <code>"Twemoji Mozilla"</code> — Twitter/Mozilla-style
+          </p>
+          <div class="samples twemoji" aria-label="Twemoji samples">
+            <span class="sample">🗑️<small>unconfirmed</small></span>
+            <span class="sample">🚮<small>confirmed</small></span>
+            <span class="sample">🚨<small>missing</small></span>
+          </div>
+        </article>
+
+        <article class="card">
+          <h2>Apple Color Emoji</h2>
+          <p class="font-name"><code>"Apple Color Emoji"</code> — Apple-style</p>
+          <div class="samples apple" aria-label="Apple Color Emoji samples">
+            <span class="sample">🗑️<small>unconfirmed</small></span>
+            <span class="sample">🚮<small>confirmed</small></span>
+            <span class="sample">🚨<small>missing</small></span>
+          </div>
+        </article>
+      </section>
+
+      <p class="note">
+        On Windows, options that are not installed may fall back to the browser or
+        operating-system emoji font.
+      </p>
+    </main>
+  </body>
+</html>

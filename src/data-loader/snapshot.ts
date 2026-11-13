@@ -1,0 +1,5 @@
+import { INVENTORY_SNAPSHOT_FORMAT_VERSION } from '../baskets/model'
+
+export const BUNDLED_INVENTORY_SNAPSHOT_PATH = '/data/basket-inventory.json'
+export const BUNDLED_INVENTORY_SNAPSHOT_FORMAT_VERSION =
+  INVENTORY_SNAPSHOT_FORMAT_VERSION
