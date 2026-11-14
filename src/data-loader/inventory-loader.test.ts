@@ -30,6 +30,7 @@ describe('complete Socrata inventory loader', () => {
       strategy: 'high-limit',
       requestCount: 1,
       pageCount: 1,
+      responseSizeBytes: expect.any(Number),
       rawRecordCount: 2,
       uniqueRecordCount: 2,
       terminationReason: 'short-high-limit-page',
@@ -63,10 +64,13 @@ describe('complete Socrata inventory loader', () => {
     })
 
     expect(result.records).toHaveLength(1_237)
+    expect(result.records[0]?.basketid).toBe('B-0')
+    expect(result.records.at(-1)?.basketid).toBe('B-1236')
     expect(result.diagnostics).toMatchObject({
       strategy: 'offset-pagination',
       requestCount: 3,
       pageCount: 2,
+      responseSizeBytes: expect.any(Number),
       rawRecordCount: 1_237,
       uniqueRecordCount: 1_237,
       duplicateCount: 0,

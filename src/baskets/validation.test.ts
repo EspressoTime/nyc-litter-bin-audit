@@ -35,6 +35,18 @@ describe('inventory validation', () => {
     expect(result.diagnostics.invalidCoordinateCount).toBe(3)
   })
 
+  it('accepts the inclusive NYC coordinate bounds and rejects just-outside values', () => {
+    const result = validateAndNormalizeInventory([
+      { basketid: 'B-min', latitude: '40.49', longitude: '-74.26' },
+      { basketid: 'B-max', latitude: 40.92, longitude: -73.69 },
+      { basketid: 'B-west', latitude: '40.70', longitude: '-74.261' },
+      { basketid: 'B-east', latitude: '40.70', longitude: '-73.689' },
+    ])
+
+    expect(result.baskets.map((basket) => basket.basketId)).toEqual(['B-min', 'B-max'])
+    expect(result.diagnostics.invalidCoordinateCount).toBe(2)
+  })
+
   it('keeps the first deterministic record and counts duplicate basket IDs', () => {
     const result = validateAndNormalizeInventory([
       validRecord,
@@ -68,6 +80,23 @@ describe('inventory validation', () => {
       expect(error).toBeInstanceOf(InventoryValidationError)
       expect((error as InventoryValidationError).diagnostics).toMatchObject({
         validRecordCount: 0,
+        unnormalizableRecordCount: 1,
+        terminationReason: 'schema-error',
+      })
+    }
+  })
+
+  it('fails safely when the response is not an array', () => {
+    expect(() => validateAndNormalizeInventory({ records: [validRecord] })).toThrow(
+      InventoryValidationError,
+    )
+
+    try {
+      validateAndNormalizeInventory({ records: [validRecord] })
+    } catch (error) {
+      expect(error).toBeInstanceOf(InventoryValidationError)
+      expect((error as InventoryValidationError).diagnostics).toMatchObject({
+        inputRecordCount: 0,
         unnormalizableRecordCount: 1,
         terminationReason: 'schema-error',
       })

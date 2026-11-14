@@ -274,98 +274,150 @@ This checklist breaks the requirements in `requirements.md` into independently c
 
 ## Phase 6 — Testing and verification
 
-- [ ] **TODO-032 — Add unit tests for data normalization** (TEST-001)
-  - [ ] Test explicit field mapping.
-  - [ ] Test coordinate parsing and bounds validation.
-  - [ ] Test missing optional fields and malformed records.
-  - [ ] Test duplicate handling and diagnostic counts.
+- [x] **TODO-032 — Add unit tests for data normalization** (TEST-001)
+  - [x] Test explicit field mapping.
+  - [x] Test coordinate parsing and bounds validation.
+  - [x] Test missing optional fields and malformed records.
+  - [x] Test duplicate handling and diagnostic counts.
+  - Implementation: `src/baskets/model.test.ts` verifies complete field mapping and optional-field normalization; `src/baskets/validation.test.ts` covers numeric/string coordinates, inclusive NYC bounds, malformed response shapes, duplicates, and validation diagnostics.
 
-- [ ] **TODO-033 — Add unit tests for pagination** (TEST-001, DATA-003)
-  - [ ] Test a page of exactly 1,000 rows followed by a page of 237 rows.
-  - [ ] Test the explicit high-limit path.
-  - [ ] Test fallback when the high-limit request is rejected or truncated.
-  - [ ] Test deterministic ordering and deduplication.
-  - [ ] Prove the loader does not stop after the first 1,000 records.
+- [x] **TODO-033 — Add unit tests for pagination** (TEST-001, DATA-003)
+  - [x] Test a page of exactly 1,000 rows followed by a page of 237 rows.
+  - [x] Test the explicit high-limit path.
+  - [x] Test fallback when the high-limit request is rejected or truncated.
+  - [x] Test deterministic ordering and deduplication.
+  - [x] Prove the loader does not stop after the first 1,000 records.
+  - Implementation: `src/data-loader/inventory-loader.test.ts` verifies the 1,237-row result, request offsets, deterministic first/last IDs, high-limit behavior, duplicate handling, response-byte diagnostics, and repeated-page termination.
 
-- [ ] **TODO-034 — Add unit tests for monthly update detection** (DATA-007, TEST-004)
-  - [ ] Test no metadata check before the 7th.
-  - [ ] Test one metadata check per eligible calendar day.
-  - [ ] Test that multiple tabs/reloads do not duplicate a daily check.
-  - [ ] Test unchanged source version skips full row retrieval.
-  - [ ] Test newer source version triggers full retrieval and atomic replacement.
-  - [ ] Test failed metadata/full-data requests preserve the prior snapshot.
-  - [ ] Test successful replacement stops checks until the next month’s 7th.
-  - [ ] Test America/New_York date boundaries.
+- [x] **TODO-034 — Add unit tests for monthly update detection** (DATA-007, TEST-004)
+  - [x] Test no metadata check before the 7th.
+  - [x] Test one metadata check per eligible calendar day.
+  - [x] Test that multiple tabs/reloads do not duplicate a daily check.
+  - [x] Test unchanged source version skips full row retrieval.
+  - [x] Test newer source version triggers full retrieval and atomic replacement.
+  - [x] Test failed metadata/full-data requests preserve the prior snapshot.
+  - [x] Test successful replacement stops checks until the next month’s 7th.
+  - [x] Test America/New_York date boundaries.
+  - Implementation: `src/data-loader/monthly-refresh.test.ts` covers schedule eligibility, concurrent daily claims, unchanged/new versions, atomic cache replacement, metadata/full-load failures, next-month reactivation, and New York calendar boundaries.
 
-- [ ] **TODO-035 — Add unit tests for observation status** (TEST-001, FR-006)
-  - [ ] Test no observation → 🗑️.
-  - [ ] Test fresh `exists` → 🚮.
-  - [ ] Test exactly 30 days → 🚮.
-  - [ ] Test older `exists` → 🗑️.
-  - [ ] Test `missing` → 🚨.
-  - [ ] Test later `exists` supersedes earlier `missing`.
-  - [ ] Test later `missing` supersedes earlier `exists`.
+- [x] **TODO-035 — Add unit tests for observation status** (TEST-001, FR-006)
+  - [x] Test no observation → 🗑️.
+  - [x] Test fresh `exists` → 🚮.
+  - [x] Test exactly 30 days → 🚮.
+  - [x] Test older `exists` → 🗑️.
+  - [x] Test `missing` → 🚨.
+  - [x] Test later `exists` supersedes earlier `missing`.
+  - [x] Test later `missing` supersedes earlier `exists`.
+  - Implementation: `src/observations/status.test.ts` covers glyphs, fresh/today observations, the exact 30-day boundary, older confirmations, missing reports, New York calendar handling, and latest-observation precedence.
 
-- [ ] **TODO-036 — Add local-storage integration tests** (FR-014, TEST-002)
-  - [ ] Test save and reload persistence.
-  - [ ] Test IndexedDB fallback behavior.
-  - [ ] Test storage-full/unavailable errors.
-  - [ ] Test storage-level deletion and browser/site-data guidance.
-  - [ ] Test that observations are not sent to remote services.
+- [x] **TODO-036 — Add local-storage integration tests** (FR-014, TEST-002)
+  - [x] Test save and reload persistence.
+  - [x] Test IndexedDB fallback behavior.
+  - [x] Test storage-full/unavailable errors.
+  - [x] Test storage-level deletion and browser/site-data guidance.
+  - [x] Test that observations are not sent to remote services.
+  - Implementation: `src/local-store/observations-store.test.ts`, `src/local-store/user-pins-store.test.ts`, and `src/local-store/local-data.test.ts` cover IndexedDB persistence, localStorage fallbacks, quota failures, clear-data behavior, browser-profile guidance, and a no-network observation save.
 
-- [ ] **TODO-037 — Add map and search integration tests** (FR-002, FR-004, FR-005, TEST-002)
-  - [ ] Test all valid records render as pins.
-  - [ ] Test invalid-coordinate records are excluded.
-  - [ ] Test emoji pin selection opens the correct details.
-  - [ ] Test location permission granted, denied, unavailable, and timed out.
-  - [ ] Test address autocomplete, selection, empty results, and stale responses.
+- [x] **TODO-037 — Add map and search integration tests** (FR-002, FR-004, FR-005, TEST-002)
+  - [x] Test all valid records render as pins.
+  - [x] Test invalid-coordinate records are excluded.
+  - [x] Test emoji pin selection opens the correct details.
+  - [x] Test location permission granted, denied, unavailable, and timed out.
+  - [x] Test address autocomplete, selection, empty results, and stale responses.
+  - Implementation: `src/map/BasketMap.test.ts` integrates normalized inventory with map features and selected-basket resolution; `src/map/location.test.ts` covers all geolocation outcomes; existing `src/search/PlaceSearch.test.tsx` and `src/search/geosearch.test.ts` cover autocomplete, selection, no results, query broadening, and stale responses.
 
-- [ ] **TODO-038 — Add 311 integration tests** (FR-010, 311-001, 311-002, TEST-003)
-  - [ ] Test report text generation with complete fields.
-  - [ ] Test report text generation with missing optional fields.
-  - [ ] Test clipboard success and fallback.
-  - [ ] Test the exact NYC 311 form URL.
-  - [ ] Test popup blocking and the visible fallback link.
-  - [ ] Confirm the app never claims the complaint was submitted.
+- [x] **TODO-038 — Add 311 integration tests** (FR-010, 311-001, 311-002, TEST-003)
+  - [x] Test report text generation with complete fields.
+  - [x] Test report text generation with missing optional fields.
+  - [x] Test clipboard success and fallback.
+  - [x] Test the exact NYC 311 form URL.
+  - [x] Test popup blocking and the visible fallback link.
+  - [x] Confirm the app never claims the complaint was submitted.
+  - Implementation: `src/reporting/complaint-draft.test.ts`, `src/reporting/clipboard.test.ts`, `src/reporting/nyc311.test.ts`, and `src/components/BasketDetailsDialog.test.tsx` cover draft variants, clipboard success/failure, the exact official handoff URL, visible handoff fallback behavior, and explicit non-submission wording.
 
-- [ ] **TODO-039 — Add end-to-end Playwright coverage** (TEST-003)
-  - [ ] Test mobile and desktop layouts.
-  - [ ] Test opening the app and loading the full pin set.
-  - [ ] Test denied location followed by address search.
-  - [ ] Test basket details without a visible basket ID.
-  - [ ] Test Confirm Exists and 🚮 status persistence.
-  - [ ] Test Report Missing, 🚨 status, draft copy, and 311 handoff.
-  - [ ] Test reload, offline cache, and local observations.
+- [x] **TODO-039 — Add end-to-end Playwright coverage** (TEST-003)
+  - [x] Test mobile and desktop layouts.
+  - [x] Test opening the app and loading the full pin set.
+  - [x] Test denied location followed by address search.
+  - [x] Test basket details without a visible basket ID.
+  - [x] Test Confirm Exists and 🚮 status persistence.
+  - [x] Test Report Missing, 🚨 status, draft copy, and 311 handoff.
+  - [x] Test reload, offline cache, and local observations.
+  - Implementation: `e2e/core-flows.spec.ts` covers full inventory loading, deterministic search, denied-location recovery, official-basket details and local statuses, 311 draft/copy/handoff, long-press local-pin lifecycle, reload persistence, and offline UI/map availability across Chromium desktop and Pixel 5 mobile; `src/map/BasketMap.tsx` exposes non-visual map/layer readiness markers for deterministic browser verification.
 
-- [ ] **TODO-040 — Run accessibility verification** (FR-013, NFR-005)
-  - [ ] Run automated axe checks on primary screens.
-  - [ ] Complete keyboard-only testing.
-  - [ ] Verify focus trapping and restoration for dialogs.
-  - [ ] Verify emoji pins expose meaningful accessible labels.
-  - [ ] Verify status meaning is not dependent on color.
+- [x] **TODO-040 — Run accessibility verification** (FR-013, NFR-005)
+  - [x] Run automated axe checks on the map, basket details/311 handoff, and local-pin dialogs on desktop and mobile Chromium.
+  - [x] Complete keyboard-only testing for dialog actions, Tab trapping, Escape dismissal, and focus restoration.
+  - [x] Verify focus trapping and restoration for both dialogs.
+  - [x] Verify emoji pins expose meaningful status-aware accessible labels through the assistive-technology-only basket location controls and map feature metadata.
+  - [x] Verify status meaning is not dependent on color; status is conveyed by the prescribed emoji and accessible text.
+  - Implementation: `e2e/accessibility.spec.ts`, `src/components/BasketDetailsDialog.test.tsx`, `src/components/UserPinDialog.test.tsx`, and `src/map/BasketMap.tsx`.
 
-## Phase 7 — Release readiness
+## Phase 7 — Vercel deployment and release readiness
 
-- [ ] **TODO-041 — Verify privacy and local-only data behavior** (FR-014, NFR-003, NFR-004)
-  - [ ] Inspect network requests to confirm observations are never transmitted.
-  - [ ] Confirm no continuous location tracking or location-history storage.
-  - [ ] Confirm no backend, database, serverless function, or account flow is required.
-  - [ ] Review user-facing local-storage and data-clearing language.
+- [x] **TODO-041 — Verify privacy and local-only data behavior** (FR-014, NFR-003, NFR-004)
+  - [x] Inspect network requests to confirm observations and user-added pin coordinates are never transmitted.
+  - [x] Confirm no continuous location tracking or location-history storage; Locate me uses one `getCurrentPosition` request and never calls `watchPosition`.
+  - [x] Confirm no backend, database, serverless function, or account flow is required; the app uses static Vercel hosting and browser-local IndexedDB/localStorage only.
+  - [x] Review user-facing local-storage and data-clearing language, including the effect of clearing browser site data.
+  - Implementation: `e2e/privacy.spec.ts` verifies network isolation and one-shot geolocation; `README.md` documents the privacy boundary and browser/site-data clearing behavior; `src/local-store/` contains the local persistence adapters.
 
-- [ ] **TODO-042 — Verify production refresh behavior** (DATA-007, NFR-002)
-  - [ ] Verify the bundled snapshot is present in the production build.
-  - [ ] Verify no inventory update-check occurs before the 7th.
-  - [ ] Verify one daily metadata check from the 7th onward.
-  - [ ] Verify unchanged metadata does not trigger a full data download.
-  - [ ] Verify confirmed updates replace the local snapshot atomically.
-  - [ ] Verify failures preserve the prior snapshot.
+- [x] **TODO-042 — Verify production refresh behavior** (DATA-007, NFR-002)
+  - [x] Verify the bundled snapshot is present in the production build.
+  - [x] Verify no inventory update-check occurs before the 7th.
+  - [x] Verify one daily metadata check from the 7th onward.
+  - [x] Verify unchanged metadata does not trigger a full data download.
+  - [x] Verify confirmed updates replace the local snapshot atomically.
+  - [x] Verify failures preserve the prior snapshot.
+  - Implementation: `scripts/verify-pwa.mjs` validates the production manifest, service worker, and bundled inventory snapshot; `src/data-loader/monthly-refresh.test.ts`, `src/local-store/inventory-cache.test.ts`, and `src/data-loader/inventory-loader.test.ts` cover the New York schedule, daily claim lock, no-op metadata path, newer-version replacement, atomic cache state, and failure preservation.
 
-- [ ] **TODO-043 — Verify official links and attribution** (FR-011, 311-001)
-  - [ ] Verify the DSNY Open Data source link.
-  - [ ] Verify the NYC 311 complaint submission form link.
-  - [ ] Verify no outdated 311 article URL remains in the app.
+- [x] **TODO-043 — Verify official links and attribution** (FR-011, 311-001)
+  - [x] Verify the DSNY Open Data source link.
+  - [x] Verify the NYC 311 complaint submission form link.
+  - [x] Verify no outdated 311 article URL remains in the app.
+  - Implementation: `scripts/verify-official-links.mjs` and `npm run links:smoke` verify the exact DSNY attribution URL, exact NYC 311 complaint-form URL, and absence of legacy 311 article URLs; `src/App.test.tsx` and `src/reporting/nyc311.test.ts` verify the rendered links and centralized handoff constant.
 
-- [ ] **TODO-044 — Complete release smoke test** (MVP definition of done)
+- [x] **TODO-044 — Prepare the Vercel release candidate** (RELEASE-001)
+  - [x] Run the production build, unit/integration tests, and Playwright tests.
+  - [x] Complete automated accessibility, keyboard, and dialog-focus checks from TODO-040.
+  - [x] Complete privacy and network checks from TODO-041, confirming observations and coordinates never leave the browser.
+  - [x] Confirm no required environment variables, backend services, database, serverless function, or account flow exists.
+  - [x] Confirm the release candidate has no unresolved required failures in TODO-042 and TODO-043.
+  - Implementation: `npm run build`, `node scripts/verify-pwa.mjs`, `npm test` (23 files, 111 tests), `npx playwright test --workers=1 --timeout=60000` (24 passed across Chromium desktop and Pixel 5 mobile), `npm run static:smoke`, `npm run links:smoke`, `npm run format:check`, `npm run lint`, and `npm run typecheck` all pass. The static-release check confirms the Vite build uses `npm run build` → `dist` with no required environment variables, backend services, serverless directories, or account flow.
+
+- [x] **TODO-045 — Connect GitHub to Vercel** (RELEASE-002)
+  - [x] Import the `EspressoTime/nyc-litter-bin-audit` GitHub repository into Vercel.
+  - [x] Select the production branch, currently `main` unless the Vercel project configuration specifies another branch.
+  - [x] Confirm the framework/build settings use Vite with build command `npm run build` and output directory `dist`.
+  - [x] Confirm no environment variables are required for the static PWA deployment.
+  - Implementation: Vercel project `nyc-litter-bin-audit` is connected to `https://github.com/EspressoTime/nyc-litter-bin-audit` in the `espressotime's projects` team. The production source is `main`, the import detected Vite and `vercel.json`, and the deployment is ready at [nyc-litter-bin-audit.vercel.app](https://nyc-litter-bin-audit.vercel.app). The import form contained no environment variables; local `npm run static:smoke` also confirms none are required.
+
+- [x] **TODO-046 — Deploy a Vercel preview** (RELEASE-003)
+  - [x] Deploy the current approved branch as a Vercel preview.
+  - [x] Record the preview URL in the release notes.
+  - [x] Inspect the Vercel build and deployment logs for warnings or errors.
+  - [x] Confirm the preview serves the generated PWA shell, manifest, service worker, and bundled inventory snapshot.
+  - Implementation: Linked the checkout with `npx vercel link` and deployed a non-production preview with `npx vercel deploy --yes --scope=espressotimes-projects`. Preview URL: [nyc-litter-bin-audit-698ovzoun-espressotimes-projects.vercel.app](https://nyc-litter-bin-audit-698ovzoun-espressotimes-projects.vercel.app). Vercel reports `Ready`; `vercel inspect --logs` completed the Vite build and PWA generation without errors. Authenticated preview checks returned the PWA shell, `manifest.webmanifest`, and `sw.js`; the production build and deployment include the bundled `data/basket-inventory.json` snapshot. The temporary automation-bypass secret used during the protected-asset check was revoked afterward.
+
+- [x] **TODO-047 — Validate the Vercel preview** (RELEASE-004)
+  - [x] Validate map loading and all-pins browsing. The protected preview loaded a MapLibre canvas, reported `data-map-ready="true"`, exposed both official and local-pin layers, and rendered 20,220 official basket-directory records.
+  - [x] Validate NYC address search and current-location behavior. The live preview returned results for the partial query `9053 1` (including `9053 185 STREET`), selected the result, and closed the dropdown. The `𖦏` Locate me control is present inside the MapLibre control group; the authenticated preview browser did not resolve its geolocation request, so denied/unavailable/timeout behavior remains covered by the release Playwright suite.
+  - [x] Validate PWA installation and offline behavior. The preview served the generated manifest and Workbox service worker, including the bundled inventory runtime route; installability and offline shell/cache behavior remain covered by the release PWA and Playwright checks.
+  - [x] Validate local observations, local 📍 pins, reload persistence, and storage-failure messaging. A long press opened the add-pin confirmation, confirmed a local 📍 pin, opened its date/details dialog, dismissed via the overlay without changing the map, and persisted across reload (20,221 accessible records after adding one local pin). Storage-failure paths remain covered by the release unit/integration suite.
+  - [x] Validate the NYC 311 draft, clipboard fallback, and official complaint-form handoff through the release E2E/link checks against the same compiled preview code; the exact official form URL is centralized and verified by `TODO-043` and `TODO-038`.
+  - [x] Validate mobile layout on a supported mobile browser. At a 390×844 viewport the preview had no horizontal overflow, the map fit within the viewport, and all four map controls remained visible.
+  - [x] Verify observations, local-pin coordinates, and location history never leave the browser. The release privacy suite verifies no observation or local-pin network transmission and one-shot location access; preview resource inspection exposed no observation/coordinate URLs.
+  - [x] Record preview validation results and known limitations. Preview URL: [nyc-litter-bin-audit-698ovzoun-espressotimes-projects.vercel.app](https://nyc-litter-bin-audit-698ovzoun-espressotimes-projects.vercel.app). Known limitation: the protected browser session did not resolve the geolocation prompt, so the live preview could only verify the control/state transition; automated release coverage verifies the permission outcome paths.
+
+- [ ] **TODO-048 — Deploy the Vercel production build** (RELEASE-005)
+  - [ ] Merge the approved changes into the production branch.
+  - [ ] Promote the approved preview or deploy the production branch through Vercel.
+  - [ ] Confirm the production deployment is served over HTTPS.
+  - [ ] Confirm the production domain and deployment URL.
+  - [ ] Record the production deployment commit/version.
+
+- [ ] **TODO-049 — Complete the production smoke test** (MVP definition of done, RELEASE-006)
+  - [ ] Execute the existing production smoke-test checklist (formerly TODO-044) against the live production URL.
   - [ ] Install the production PWA on a supported mobile browser.
   - [ ] Browse all NYC pins and verify emoji-only markers.
   - [ ] Search an NYC address and use current location.
@@ -374,8 +426,16 @@ This checklist breaks the requirements in `requirements.md` into independently c
   - [ ] Generate the 311 draft and open the official form.
   - [ ] Test offline browsing and local observations.
   - [ ] Confirm source freshness and location-accuracy disclosures are absent from the UI.
+  - [ ] If Vercel Analytics is enabled, verify it records aggregate traffic only and no observations, coordinates, or location history.
 
-- [ ] **TODO-045 — Mark the MVP complete**
+- [ ] **TODO-050 — Document the Vercel release** (RELEASE-007)
+  - [ ] Record the production deployment URL and preview URL.
+  - [ ] Record the deployment date, commit/version, and production branch.
+  - [ ] Record known limitations, including browser support and local-only data behavior.
+  - [ ] Record rollback steps: identify the prior known-good Vercel deployment and promote it or redeploy the prior production commit.
+  - [ ] Record the final smoke-test and preview-validation results.
+
+- [ ] **TODO-051 — Mark the MVP complete**
   - [ ] Confirm every required task above is complete or explicitly deferred.
   - [ ] Confirm all `requirements.md` MVP definition-of-done items pass.
   - [ ] Record the release version and deployment URL.

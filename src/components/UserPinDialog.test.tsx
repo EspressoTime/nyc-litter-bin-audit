@@ -44,6 +44,61 @@ describe('UserPinDialog', () => {
     expect(onPageClick).not.toHaveBeenCalled()
   })
 
+  it('dismisses on Escape and restores focus to the opener', () => {
+    const opener = document.createElement('button')
+    opener.type = 'button'
+    opener.textContent = 'Open local pin'
+    document.body.appendChild(opener)
+    opener.focus()
+    const onCancel = vi.fn()
+
+    const { unmount } = render(
+      <UserPinDialog mode="create" onConfirm={() => undefined} onCancel={onCancel} />,
+    )
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onCancel).toHaveBeenCalledOnce()
+
+    unmount()
+    expect(opener).toHaveFocus()
+    opener.remove()
+  })
+
+  it('traps focus across local-pin dialog actions', () => {
+    const opener = document.createElement('button')
+    opener.type = 'button'
+    opener.textContent = 'Open local pin'
+    document.body.appendChild(opener)
+    opener.focus()
+
+    render(
+      <UserPinDialog
+        mode="manage"
+        pin={pin}
+        onClose={() => undefined}
+        onReconfirm={() => undefined}
+        onRemove={() => undefined}
+      />,
+    )
+
+    const closeButton = screen.getByRole('button', { name: 'Close local basket pin' })
+    const reconfirmButton = screen.getByRole('button', {
+      name: 'Reconfirm / update date last seen',
+    })
+    const removeButton = screen.getByRole('button', { name: 'Remove pin' })
+
+    removeButton.focus()
+    fireEvent.keyDown(document, { key: 'Tab' })
+    expect(closeButton).toHaveFocus()
+
+    closeButton.focus()
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true })
+    expect(removeButton).toHaveFocus()
+
+    expect(reconfirmButton).toBeInTheDocument()
+    opener.remove()
+  })
+
   it('shows the previous confirmation date and supports reconfirmation', async () => {
     const onReconfirm = vi.fn().mockResolvedValue(undefined)
     render(
@@ -61,6 +116,7 @@ describe('UserPinDialog', () => {
         /You confirmed seeing a litter basket here on November 12, 2026/,
       ),
     ).toBeInTheDocument()
+    expect(screen.getByText(/stored only in this browser profile/)).toBeInTheDocument()
     fireEvent.click(
       screen.getByRole('button', { name: 'Reconfirm / update date last seen' }),
     )

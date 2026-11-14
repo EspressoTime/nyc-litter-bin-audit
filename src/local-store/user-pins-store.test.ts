@@ -4,6 +4,7 @@ import {
   createLocalUserPin,
   deleteLocalUserPin,
   getLocalUserPins,
+  LocalUserPinStoreError,
   LOCAL_PIN_DB_NAME,
   LOCAL_PIN_FALLBACK_KEY,
   reconfirmLocalUserPin,
@@ -57,6 +58,31 @@ describe('local user pin store', () => {
       expect(localStorage.getItem(LOCAL_PIN_FALLBACK_KEY)).not.toBeNull()
       await expect(getLocalUserPins()).resolves.toEqual([pin])
     } finally {
+      vi.unstubAllGlobals()
+      Object.defineProperty(window, 'indexedDB', {
+        configurable: true,
+        value: originalIndexedDb,
+      })
+    }
+  })
+
+  it('reports a storage error when the localStorage fallback is full', async () => {
+    const originalIndexedDb = window.indexedDB
+    vi.stubGlobal('indexedDB', undefined)
+    Object.defineProperty(window, 'indexedDB', {
+      configurable: true,
+      value: undefined,
+    })
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('quota exceeded')
+    })
+
+    try {
+      await expect(
+        createLocalUserPin({ latitude: 40.7, longitude: -74 }),
+      ).rejects.toBeInstanceOf(LocalUserPinStoreError)
+    } finally {
+      setItem.mockRestore()
       vi.unstubAllGlobals()
       Object.defineProperty(window, 'indexedDB', {
         configurable: true,

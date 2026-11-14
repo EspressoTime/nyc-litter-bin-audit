@@ -9,7 +9,7 @@ import {
 } from '../observations/status'
 import type { LocalUserPin } from '../local-store/user-pins-store'
 import { MAP_CONFIG } from './config'
-import { getLocationErrorState, LOCATION_OPTIONS, type LocationState } from './location'
+import { requestCurrentLocation, type LocationState } from './location'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
 const BASKET_SOURCE_ID = 'official-baskets'
@@ -176,6 +176,20 @@ export function toUserPinFeatureCollection(
   }
 }
 
+export function findBasketForMapFeature(
+  properties: unknown,
+  baskets: NormalizedBasket[],
+): NormalizedBasket | undefined {
+  if (typeof properties !== 'object' || properties === null) {
+    return undefined
+  }
+
+  const basketId = (properties as { basketId?: unknown }).basketId
+  return typeof basketId === 'string'
+    ? baskets.find((basket) => basket.basketId === basketId)
+    : undefined
+}
+
 async function createPinImage(glyph: string): Promise<ImageData> {
   if (typeof document === 'undefined') {
     throw new Error('Pin images require a browser document.')
@@ -254,6 +268,18 @@ function moveMapToLocation(
   }
 
   map.flyTo({ center: coordinates, zoom, essential: true })
+}
+
+function getBasketAccessibleName(
+  basket: NormalizedBasket,
+  observations: LocalObservation[],
+): string {
+  const location = [basket.streetName1, basket.streetName2]
+    .filter((value): value is string => Boolean(value))
+    .join(' and ')
+  const presentation = getBasketPinPresentation(basket.basketId, observations)
+
+  return `${location || 'Basket location'}: ${presentation.accessibleLabel}`
 }
 
 const BasketMap = forwardRef<BasketMapHandle, BasketMapProps>(function BasketMap(
@@ -349,22 +375,7 @@ const BasketMap = forwardRef<BasketMapHandle, BasketMapProps>(function BasketMap
       onLocationStateChangeRef.current?.(state)
     }
 
-    if (!navigator.geolocation) {
-      updateLocationState('unavailable')
-      return
-    }
-
-    updateLocationState('requesting')
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setUserLocation([position.coords.longitude, position.coords.latitude])
-        updateLocationState('located')
-      },
-      (error) => {
-        updateLocationState(getLocationErrorState(error.code))
-      },
-      LOCATION_OPTIONS,
-    )
+    requestCurrentLocation(navigator.geolocation, setUserLocation, updateLocationState)
   }
 
   const flyToLocation = (coordinates: [number, number]) => {
@@ -392,6 +403,7 @@ const BasketMap = forwardRef<BasketMapHandle, BasketMapProps>(function BasketMap
         toUserPinFeatureCollection(userPins),
       )
     }
+    containerRef.current?.setAttribute('data-user-pin-count', String(userPins.length))
   }, [baskets, observations, userPins])
 
   useEffect(() => {
@@ -464,11 +476,6 @@ const BasketMap = forwardRef<BasketMapHandle, BasketMapProps>(function BasketMap
         suppressNextClickRef.current = false
         return
       }
-      const basketId = feature?.properties?.basketId
-      if (typeof basketId !== 'string') {
-        return
-      }
-
       if (selectedFeatureIdRef.current !== undefined) {
         map.removeFeatureState(
           { source: BASKET_SOURCE_ID, id: selectedFeatureIdRef.current },
@@ -484,7 +491,7 @@ const BasketMap = forwardRef<BasketMapHandle, BasketMapProps>(function BasketMap
         selectedFeatureIdRef.current = feature.id
       }
 
-      const basket = basketsRef.current.find((item) => item.basketId === basketId)
+      const basket = findBasketForMapFeature(feature.properties, basketsRef.current)
       if (basket) {
         onSelectRef.current?.(basket)
       }
@@ -607,6 +614,7 @@ const BasketMap = forwardRef<BasketMapHandle, BasketMapProps>(function BasketMap
     canvas.addEventListener('pointercancel', handlePointerCancel)
 
     const handleLoad = () => {
+      containerRef.current?.setAttribute('data-map-ready', 'true')
       map.addSource(BASKET_SOURCE_ID, {
         type: 'geojson',
         data: toBasketFeatureCollection(basketsRef.current, observationsRef.current),
@@ -654,6 +662,7 @@ const BasketMap = forwardRef<BasketMapHandle, BasketMapProps>(function BasketMap
                 'icon-ignore-placement': true,
               },
             })
+            containerRef.current?.setAttribute('data-pin-layer-ready', 'true')
 
             map.on('click', BASKET_LAYER_ID, handlePinClick)
             map.on('mouseenter', BASKET_LAYER_ID, handleMouseEnter)
@@ -672,6 +681,7 @@ const BasketMap = forwardRef<BasketMapHandle, BasketMapProps>(function BasketMap
               'text-ignore-placement': true,
             },
           })
+          containerRef.current?.setAttribute('data-pin-layer-ready', 'true')
           map.on('click', BASKET_LAYER_ID, handlePinClick)
           map.on('mouseenter', BASKET_LAYER_ID, handleMouseEnter)
           map.on('mouseleave', BASKET_LAYER_ID, handleMouseLeave)
@@ -690,6 +700,7 @@ const BasketMap = forwardRef<BasketMapHandle, BasketMapProps>(function BasketMap
               'icon-ignore-placement': true,
             },
           })
+          containerRef.current?.setAttribute('data-user-pin-layer-ready', 'true')
 
           map.on('click', USER_PIN_LAYER_ID, handleUserPinClick)
           map.on('mouseenter', USER_PIN_LAYER_ID, handleMouseEnter)
@@ -712,6 +723,7 @@ const BasketMap = forwardRef<BasketMapHandle, BasketMapProps>(function BasketMap
                 'text-ignore-placement': true,
               },
             })
+            containerRef.current?.setAttribute('data-user-pin-layer-ready', 'true')
             map.on('click', USER_PIN_LAYER_ID, handleUserPinClick)
             map.on('mouseenter', USER_PIN_LAYER_ID, handleMouseEnter)
             map.on('mouseleave', USER_PIN_LAYER_ID, handleMouseLeave)
@@ -754,6 +766,45 @@ const BasketMap = forwardRef<BasketMapHandle, BasketMapProps>(function BasketMap
         user within 30 days, and 🚨 means reported missing by this user. A 📍 pin is a
         local user-added basket observation; hold on the map to add one.
       </p>
+      <nav
+        className="visually-hidden basket-map-accessible-list"
+        aria-label="Basket locations"
+      >
+        <ul>
+          {baskets.map((basket) => (
+            <li key={basket.basketId}>
+              <button
+                type="button"
+                aria-label={getBasketAccessibleName(basket, observations)}
+                onClick={() => {
+                  if (mapRef.current) {
+                    moveMapToLocation(
+                      mapRef.current,
+                      [basket.longitude, basket.latitude],
+                      Math.max(mapRef.current.getZoom(), 15),
+                    )
+                  }
+                  onSelectRef.current?.(basket)
+                }}
+              >
+                {getBasketAccessibleName(basket, observations)}
+              </button>
+            </li>
+          ))}
+          {userPins.map((pin) => (
+            <li key={pin.local_pin_id}>
+              <button
+                type="button"
+                aria-label={`Local basket observation: Litter basket seen on ${formatObservationDate(pin.last_seen_at)}`}
+                onClick={() => onSelectUserPinRef.current?.(pin)}
+              >
+                Local basket observation: Litter basket seen on{' '}
+                {formatObservationDate(pin.last_seen_at)}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </nav>
     </>
   )
 })

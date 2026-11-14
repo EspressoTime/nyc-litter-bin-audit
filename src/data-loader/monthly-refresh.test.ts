@@ -123,6 +123,30 @@ describe('monthly inventory refresh', () => {
     expect(fullLoads).toBe(0)
   })
 
+  it('does not duplicate a daily metadata check across concurrent callers', async () => {
+    let metadataRequests = 0
+    const options = {
+      currentSnapshot,
+      now: new Date('2026-11-07T16:00:00.000Z'),
+      fetcher: async () => {
+        metadataRequests += 1
+        await Promise.resolve()
+        return metadataResponse('10')
+      },
+    }
+
+    const results = await Promise.all([
+      checkForMonthlyInventoryUpdate(options),
+      checkForMonthlyInventoryUpdate(options),
+    ])
+
+    expect(results.map((result) => result.outcome).sort()).toEqual([
+      'already-checked',
+      'unchanged',
+    ])
+    expect(metadataRequests).toBe(1)
+  })
+
   it('replaces the cache after a newer version and stops checking for the month', async () => {
     let metadataRequests = 0
     let fullLoads = 0
@@ -154,6 +178,16 @@ describe('monthly inventory refresh', () => {
     expect(fullLoads).toBe(1)
     expect((await getCachedInventorySnapshot())?.metadata.sourceVersion).toBe('11')
     expect((await getInventoryRefreshState())?.completedMonth).toBe('2026-11')
+
+    const nextMonth = await checkForMonthlyInventoryUpdate({
+      currentSnapshot,
+      now: new Date('2026-12-07T16:00:00.000Z'),
+      fetcher,
+      loadInventory,
+    })
+
+    expect(nextMonth.outcome).toBe('unchanged')
+    expect(metadataRequests).toBe(2)
   })
 
   it('allows a later eligible day to retry after a metadata failure', async () => {
@@ -222,6 +256,22 @@ describe('monthly inventory refresh', () => {
     expect(retry.outcome).toBe('updated')
     expect(fullLoads).toBe(2)
     expect((await getCachedInventorySnapshot())?.metadata.sourceVersion).toBe('11')
+  })
+
+  it('preserves the old cache after a metadata request failure', async () => {
+    await replaceCachedInventorySnapshot(currentSnapshot)
+
+    await expect(
+      checkForMonthlyInventoryUpdate({
+        currentSnapshot,
+        now: new Date('2026-11-07T16:00:00.000Z'),
+        fetcher: async () => {
+          throw new Error('metadata unavailable')
+        },
+      }),
+    ).rejects.toThrow('metadata unavailable')
+
+    expect((await getCachedInventorySnapshot())?.metadata.sourceVersion).toBe('10')
   })
 
   it('only treats numerically greater source versions as newer', () => {

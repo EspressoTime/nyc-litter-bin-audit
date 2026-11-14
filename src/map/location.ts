@@ -7,6 +7,8 @@ export const LOCATION_OPTIONS: PositionOptions = {
 export type LocationState =
   'idle' | 'requesting' | 'located' | 'denied' | 'unavailable' | 'timeout'
 
+export type LocationCoordinates = [longitude: number, latitude: number]
+
 export function getLocationErrorState(
   code: number,
 ): Exclude<LocationState, 'idle' | 'requesting' | 'located'> {
@@ -33,4 +35,27 @@ export function getLocationErrorMessage(
   }
 
   return 'Your location could not be determined. Try Locate me again or continue browsing the map.'
+}
+
+export function requestCurrentLocation(
+  geolocation: Geolocation | undefined,
+  onLocated: (coordinates: LocationCoordinates) => void,
+  onStateChange: (state: LocationState) => void,
+): void {
+  if (!geolocation) {
+    onStateChange('unavailable')
+    return
+  }
+
+  onStateChange('requesting')
+  geolocation.getCurrentPosition(
+    (position) => {
+      onLocated([position.coords.longitude, position.coords.latitude])
+      onStateChange('located')
+    },
+    (error) => {
+      onStateChange(getLocationErrorState(error.code))
+    },
+    LOCATION_OPTIONS,
+  )
 }

@@ -1,10 +1,12 @@
 import {
+  findBasketForMapFeature,
   getPinFallbackTextSizeForZoom,
   getPinIconSizeForZoom,
   prefersReducedMotion,
   toBasketFeatureCollection,
   toUserPinFeatureCollection,
 } from './BasketMap'
+import { validateAndNormalizeInventory } from '../baskets/validation'
 
 describe('basket map data source', () => {
   it('converts every normalized basket to a selectable point feature', () => {
@@ -86,6 +88,67 @@ describe('basket map data source', () => {
       glyph: '🚨',
       accessibleLabel: 'Reported missing today',
     })
+  })
+
+  it('excludes invalid inventory records before converting records to map pins', () => {
+    const normalized = validateAndNormalizeInventory([
+      {
+        basketid: 'B-valid',
+        latitude: '40.7',
+        longitude: '-74',
+      },
+      {
+        basketid: 'B-invalid',
+        latitude: 'not-a-coordinate',
+        longitude: '-74',
+      },
+    ])
+
+    const result = toBasketFeatureCollection(normalized.baskets)
+
+    expect(result.features.map((feature) => feature.id)).toEqual(['B-valid'])
+    expect(normalized.diagnostics.invalidCoordinateCount).toBe(1)
+  })
+
+  it('resolves a selected emoji pin to the correct basket details record', () => {
+    const baskets = [
+      {
+        basketId: 'B-1',
+        objectId: null,
+        basketType: null,
+        direction: null,
+        streetName1: 'First Street',
+        streetName2: null,
+        latitude: 40.7,
+        longitude: -74,
+        borough: null,
+        district: null,
+        point: { type: 'Point' as const, coordinates: [-74, 40.7] as [number, number] },
+      },
+      {
+        basketId: 'B-2',
+        objectId: null,
+        basketType: null,
+        direction: null,
+        streetName1: 'Second Street',
+        streetName2: null,
+        latitude: 40.71,
+        longitude: -73.99,
+        borough: null,
+        district: null,
+        point: {
+          type: 'Point' as const,
+          coordinates: [-73.99, 40.71] as [number, number],
+        },
+      },
+    ]
+    const features = toBasketFeatureCollection(baskets)
+    const selectedFeature = features.features[1]
+
+    expect(selectedFeature?.properties.glyph).toBe('🗑️')
+    expect(findBasketForMapFeature(selectedFeature?.properties, baskets)).toBe(
+      baskets[1],
+    )
   })
 
   it('converts local user pins to emoji-only map features', () => {

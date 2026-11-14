@@ -3,6 +3,7 @@ import { deleteDB } from 'idb'
 import {
   getLocalObservationRecords,
   getLocalObservations,
+  LocalObservationStoreError,
   isStoredLocalObservation,
   LOCAL_OBSERVATION_DB_NAME,
   LOCAL_OBSERVATION_FALLBACK_KEY,
@@ -66,6 +67,39 @@ describe('local observation store', () => {
     } finally {
       vi.unstubAllGlobals()
     }
+  })
+
+  it('reports a storage error when IndexedDB and localStorage are unavailable', async () => {
+    vi.stubGlobal('indexedDB', undefined)
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('quota exceeded')
+    })
+
+    try {
+      await expect(
+        saveLocalObservation({
+          basketId: 'B-201',
+          status: 'exists',
+          observedAt: '2026-11-12T15:00:00.000Z',
+        }),
+      ).rejects.toBeInstanceOf(LocalObservationStoreError)
+    } finally {
+      setItem.mockRestore()
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('does not send observations to remote services', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+
+    await saveLocalObservation({
+      basketId: 'B-202',
+      status: 'missing',
+      observedAt: '2026-11-12T15:00:00.000Z',
+    })
+
+    expect(fetchSpy).not.toHaveBeenCalled()
+    fetchSpy.mockRestore()
   })
 
   it('rejects invalid observation input before writing', async () => {

@@ -7,7 +7,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: 'html',
   use: {
-    baseURL: 'http://127.0.0.1:4173',
+    baseURL: 'http://127.0.0.1:4260',
     trace: 'on-first-retry',
   },
   projects: [
@@ -15,8 +15,8 @@ export default defineConfig({
     { name: 'mobile-chrome', use: { ...devices['Pixel 5'] } },
   ],
   webServer: {
-    command: 'npm run dev -- --host 127.0.0.1 --port 4173',
-    url: 'http://127.0.0.1:4173',
+    command: '.\\node_modules\\.bin\\vite.cmd --host 127.0.0.1 --port 4260',
+    url: 'http://127.0.0.1:4260',
     reuseExistingServer: !process.env.CI,
   },
 })

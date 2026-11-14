@@ -82,6 +82,68 @@ describe('BasketDetailsDialog', () => {
     opener.remove()
   })
 
+  it('dismisses on Escape and restores focus to the opener', () => {
+    const opener = document.createElement('button')
+    opener.type = 'button'
+    opener.textContent = 'Open details'
+    document.body.appendChild(opener)
+    opener.focus()
+    const onClose = vi.fn()
+
+    const { unmount } = render(
+      <BasketDetailsDialog basket={basket} onClose={onClose} />,
+    )
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledOnce()
+
+    unmount()
+    expect(opener).toHaveFocus()
+    opener.remove()
+  })
+
+  it('cycles keyboard focus through every available dialog action', async () => {
+    const opener = document.createElement('button')
+    opener.type = 'button'
+    opener.textContent = 'Open details'
+    document.body.appendChild(opener)
+    opener.focus()
+
+    const draft = 'Draft complaint text'
+    render(
+      <BasketDetailsDialog
+        basket={basket}
+        onClose={() => undefined}
+        onReportMissing={() => Promise.resolve(draft)}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Report Missing' }))
+    await screen.findByRole('textbox', { name: '311 complaint draft' })
+
+    const closeButton = screen.getByRole('button', { name: 'Close basket details' })
+    const confirmButton = screen.getByRole('button', { name: 'Confirm Exists' })
+    const reportButton = screen.getByRole('button', { name: 'Report Missing' })
+    const copyButton = screen.getByRole('button', { name: 'Copy draft' })
+    const handoffLink = screen.getByRole('link', {
+      name: 'Open official NYC 311 complaint form',
+    })
+
+    handoffLink.focus()
+    fireEvent.keyDown(document, { key: 'Tab' })
+    expect(closeButton).toHaveFocus()
+
+    closeButton.focus()
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true })
+    expect(handoffLink).toHaveFocus()
+
+    expect(confirmButton).toBeInTheDocument()
+    expect(reportButton).toBeInTheDocument()
+    expect(copyButton).toBeInTheDocument()
+
+    opener.remove()
+  })
+
   it('dismisses when the backdrop outside the modal is clicked', () => {
     const onClose = vi.fn()
     const onPageClick = vi.fn()
@@ -202,6 +264,38 @@ describe('BasketDetailsDialog', () => {
     const clickEvent = createEvent.click(handoffLink)
     fireEvent(handoffLink, clickEvent)
     expect(clickEvent.defaultPrevented).toBe(false)
+  })
+
+  it('keeps the 311 handoff visible when clipboard access is blocked', async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error('clipboard blocked'))
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    })
+    const draft =
+      'On November 12, 2026, I observed a missing public litter basket at Broadway.'
+    const onReportMissing = vi.fn().mockResolvedValue(draft)
+    render(
+      <BasketDetailsDialog
+        basket={basket}
+        onClose={() => undefined}
+        onReportMissing={onReportMissing}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Report Missing' }))
+    await screen.findByRole('textbox', { name: '311 complaint draft' })
+    fireEvent.click(screen.getByRole('button', { name: 'Copy draft' }))
+
+    expect(
+      await screen.findByText(/Clipboard access was unavailable/),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: 'Open official NYC 311 complaint form' }),
+    ).toBeVisible()
+    expect(
+      screen.getByText(/This app has not submitted a complaint/),
+    ).toBeInTheDocument()
   })
 
   it('copies the visible 311 draft when clipboard access is available', async () => {

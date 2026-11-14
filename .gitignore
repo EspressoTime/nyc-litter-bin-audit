@@ -6,3 +6,6 @@ test-results
 .vite
 *.local
 *.tsbuildinfo
+
+.vercel
+.env*

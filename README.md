@@ -58,6 +58,13 @@ The default deployment target is Vercel. The project is configured as a static V
 
 The MVP has no application backend, database, serverless function, account flow, or remote observation store. User observations remain in browser-local storage.
 
+## Privacy and local data
+
+- Official inventory, map tiles, and address-search requests are the only remote data flows used by the app. Confirmations, missing reports, added-pin coordinates, and local dates are saved only in this browser profile.
+- The Locate me control makes a single browser geolocation request when selected. The app does not use continuous location tracking or retain location history.
+- The app has no sign-in, account, backend, database, serverless function, or cross-device synchronization.
+- Clearing this site’s browser storage/site data removes locally saved observations and added pins. The app does not provide a separate in-app clear-data control; use the browser’s site-data settings when you want to remove them.
+
 The default map style is OpenFreeMap Bright through MapLibre GL JS. It does not require a client API key; map attribution remains enabled and the style provider is replaceable.
 
 No deployment or external account connection is performed by the local project configuration.

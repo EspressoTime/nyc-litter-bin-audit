@@ -42,6 +42,16 @@ describe('basket pin status', () => {
     ).toMatchObject({ status: 'unconfirmed', glyph: PIN_GLYPHS.unconfirmed })
   })
 
+  it('uses the confirmed glyph for an observation from today', () => {
+    expect(
+      getBasketPinPresentation(
+        'B-1',
+        [observation('exists', '2026-11-12T16:00:00.000Z')],
+        now,
+      ),
+    ).toMatchObject({ status: 'confirmed', glyph: PIN_GLYPHS.confirmed })
+  })
+
   it('uses New York calendar dates rather than elapsed milliseconds', () => {
     const lateNightObservation = new Date('2026-10-13T03:30:00.000Z')
     const earlyMorningNow = new Date('2026-11-12T04:30:00.000Z')
@@ -76,5 +86,18 @@ describe('basket pin status', () => {
         now,
       ),
     ).toMatchObject({ status: 'confirmed', glyph: PIN_GLYPHS.confirmed })
+  })
+
+  it('lets a later missing observation supersede an earlier exists observation', () => {
+    expect(
+      getBasketPinPresentation(
+        'B-1',
+        [
+          observation('exists', '2026-11-01T16:00:00.000Z'),
+          observation('missing', '2026-11-12T16:00:00.000Z'),
+        ],
+        now,
+      ),
+    ).toMatchObject({ status: 'missing', glyph: PIN_GLYPHS.missing })
   })
 })
