@@ -409,12 +409,13 @@ This checklist breaks the requirements in `requirements.md` into independently c
   - [x] Verify observations, local-pin coordinates, and location history never leave the browser. The release privacy suite verifies no observation or local-pin network transmission and one-shot location access; preview resource inspection exposed no observation/coordinate URLs.
   - [x] Record preview validation results and known limitations. Preview URL: [nyc-litter-bin-audit-698ovzoun-espressotimes-projects.vercel.app](https://nyc-litter-bin-audit-698ovzoun-espressotimes-projects.vercel.app). Known limitation: the protected browser session did not resolve the geolocation prompt, so the live preview could only verify the control/state transition; automated release coverage verifies the permission outcome paths.
 
-- [ ] **TODO-048 — Deploy the Vercel production build** (RELEASE-005)
-  - [ ] Merge the approved changes into the production branch.
-  - [ ] Promote the approved preview or deploy the production branch through Vercel.
-  - [ ] Confirm the production deployment is served over HTTPS.
-  - [ ] Confirm the production domain and deployment URL.
-  - [ ] Record the production deployment commit/version.
+- [x] **TODO-048 — Deploy the Vercel production build** (RELEASE-005)
+  - [x] Merge the approved changes into the production branch. Commit `a0f920c` was created on `main` and pushed to `origin/main`.
+  - [x] Promote the approved preview or deploy the production branch through Vercel. Vercel’s Git integration deployed the pushed `main` commit as production deployment `dpl_8ocViGeivjTNtvse3MCGgW888Hr7`.
+  - [x] Confirm the production deployment is served over HTTPS. Vercel reports status `● Ready` and the production alias responds successfully over HTTPS.
+  - [x] Confirm the production domain and deployment URL. Production URL: [nyc-litter-bin-audit.vercel.app](https://nyc-litter-bin-audit.vercel.app); deployment URL: [nyc-litter-bin-audit-quzdgcr9x-espressotimes-projects.vercel.app](https://nyc-litter-bin-audit-quzdgcr9x-espressotimes-projects.vercel.app).
+  - [x] Record the production deployment commit/version. Release commit: `a0f920c` (`Complete release validation and test coverage`), deployed November 13, 2026.
+  - Implementation: Vercel production deployment is ready with the `main` and project aliases. The live root, manifest (`display: standalone`, 3 icons), Workbox service worker, and bundled inventory snapshot all return HTTP 200; the service worker includes the inventory runtime cache route.
 
 - [ ] **TODO-049 — Complete the production smoke test** (MVP definition of done, RELEASE-006)
   - [ ] Execute the existing production smoke-test checklist (formerly TODO-044) against the live production URL.
